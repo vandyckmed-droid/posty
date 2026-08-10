@@ -157,53 +157,64 @@ with ThreadPoolExecutor(max_workers=6) as ex:
 
 print(f'done {done[0]:,}  {stats}')
 
-# Issuers differ in what they disclose: First Trust tags every position with a ticker,
-# iShares and Vanguard give only an ISIN. Since the two overlap across funds, the
-# filings that carry both are enough to name the ones that do not -- no extra requests.
-isin_to_ticker = {}
-# A small universe harvests few pairs of its own, so an existing holdings directory
-# from a wider run can seed the map. Purely a naming aid; no figures come from it.
+# ---------------------------------------------------------------------------
+# Naming. Issuers differ in what they disclose: First Trust tags every position with
+# a ticker, iShares and Vanguard give only an ISIN. The resolution is kept OUT of the
+# saved filings -- those stay exactly as parsed -- and written to a separate map that
+# stage 6 applies when it reads them. That way a naming mistake is fixed by re-running
+# this step, with no re-fetching and no risk of a bad value becoming indistinguishable
+# from one the filing actually provided.
+CACHE = 'isin_lookup.json'
+try:
+    resolved = C.load(CACHE) or {}
+except (OSError, ValueError):
+    resolved = {}
+
+files = sorted(out.glob('*.json'))
 seed = os.environ.get('ETF_ISIN_SEED')
-if seed:
-    for f in pathlib.Path(seed).glob('*.json'):
+sources = [pathlib.Path(seed)] if seed else []
+sources.append(out)
+
+harvested = 0
+for src in sources:
+    for f in src.glob('*.json'):
         try:
             h = json.loads(f.read_text())
         except ValueError:
             continue
         for p in h.get('top', []):
-            if p.get('t') and p.get('i'):
-                isin_to_ticker.setdefault(p['i'], p['t'])
-    print(f'seeded {len(isin_to_ticker):,} ISIN -> ticker pairs from {seed}')
+            if p.get('t') and p.get('i') and p['i'] not in resolved:
+                resolved[p['i']] = p['t']       # the filing named it itself
+                harvested += 1
+print(f'harvested {harvested:,} ISIN -> ticker pairs from filings that name their own')
 
-files = sorted(out.glob('*.json'))
-for f in files:
-    try:
-        h = json.loads(f.read_text())
-    except ValueError:
-        continue
-    for p in h.get('top', []):
-        if p.get('t') and p.get('i'):
-            isin_to_ticker.setdefault(p['i'], p['t'])
-print(f'harvested {len(isin_to_ticker):,} ISIN -> ticker pairs from the filings themselves')
+todo = sorted({p['i'] for f in files
+               for p in (json.loads(f.read_text()).get('top') or [])
+               if p.get('i') and not p.get('t') and p['i'] not in resolved})
+if todo:
+    print(f'resolving {len(todo):,} remaining ISINs directly')
+    rlock = Lock()
 
-filled = missing = 0
-for f in files:
-    try:
-        h = json.loads(f.read_text())
-    except ValueError:
-        continue
-    if not h.get('top'):
-        continue
-    touched = False
-    for p in h['top']:
-        if not p.get('t'):
-            hit = isin_to_ticker.get(p.get('i'))
-            if hit:
-                p['t'] = hit
-                filled += 1
-                touched = True
-            else:
-                missing += 1
-    if touched:
-        f.write_text(json.dumps(h))
-print(f'backfilled {filled:,} tickers; {missing:,} positions still unnamed')
+    def resolve(isin):
+        try:
+            hit = C.get('search-isin', isin=isin)
+        except Exception:                           # noqa: BLE001
+            hit = None
+        sym = ''
+        if isinstance(hit, list) and hit:
+            # A US security often lists abroad too, and the first match is not
+            # reliably the primary line: Labcorp's ISIN returns 0JSY.L (London)
+            # ahead of LH. Prefer a plain US-style ticker, then the largest listing.
+            def rank(row):
+                t = str(row.get('symbol') or '')
+                return (0 if ('.' not in t and '-' not in t) else 1,
+                        -float(row.get('marketCap') or 0))
+            sym = str(sorted(hit, key=rank)[0].get('symbol') or '')
+        with rlock:
+            resolved[isin] = sym                    # '' recorded too, so we ask once
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(resolve, todo))
+
+C.save(CACHE, resolved)
+have = sum(1 for v in resolved.values() if v)
+print(f'ISIN map: {have:,} named of {len(resolved):,} known')

@@ -1,6 +1,7 @@
 """Shared configuration and HTTP helpers for the ETF momentum pipeline."""
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -189,6 +190,19 @@ def profile(sym):
     return out
 
 
+_ISIN_CACHE = {}
+
+
+def _isin_map():
+    """ISIN -> ticker, built by stage 5 and applied here so naming stays derived."""
+    if not _ISIN_CACHE:
+        try:
+            _ISIN_CACHE.update(json.loads((DATA / 'isin_lookup.json').read_text()))
+        except (OSError, ValueError):
+            _ISIN_CACHE['__'] = ''
+    return _ISIN_CACHE
+
+
 def holdings(sym):
     """Top company positions from stage 5 (SEC N-PORT).
 
@@ -201,7 +215,19 @@ def holdings(sym):
     data = _load(sym, subdir='holdings')
     if not data or data.get('err') or not data.get('top'):
         return {}
-    top = [[p.get('t') or '', p.get('n') or '', p.get('p') or 0.0]
+    imap = _isin_map()
+
+    def ticker(p):
+        t = p.get('t') or imap.get(p.get('i') or '', '')
+        # A dot suffix is an exchange code (ALD.DE, 0JSY.L). On a US-domiciled
+        # position that means the lookup only knew a foreign line -- the vendor's
+        # master has no HON for Honeywell's ISIN, only ALD.DE. Showing it would be
+        # worse than showing nothing, since the company name is displayed anyway.
+        if t and p.get('c') == 'US' and re.search(r'\.[A-Z]{1,3}$', t):
+            return ''
+        return t
+
+    top = [[ticker(p), p.get('n') or '', p.get('p') or 0.0]
            for p in data['top'] if (p.get('p') or 0) > 0 and p.get('eq')]
     if not top:
         return {}

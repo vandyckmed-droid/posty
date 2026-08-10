@@ -99,9 +99,19 @@ Two details that are easy to get wrong:
   SOXX filed an `NPORT-P/A` in July 2026 covering September 2025. The stage takes the
   newest **original** `NPORT-P` instead, which gives March 2026.
 - **Issuers disclose different identifiers.** First Trust tags every position with a
-  ticker; iShares and Vanguard give only an ISIN. Because those overlap across funds,
-  the filings that carry both are harvested into an ISIN→ticker map and used to name
-  the rest — no extra requests.
+  ticker; iShares and Vanguard give only an ISIN. Naming is resolved in two passes:
+  harvest ISIN→ticker from filings that name their own, then look up whatever is left
+  via `search-isin`, cached so each ISIN is asked once ever. That takes company
+  positions from ~58% named to **100%**.
+- **Naming is kept out of the saved filings.** The parsed files stay exactly as filed
+  and the map is applied at read time, so a naming mistake is fixed by re-running one
+  step — no re-fetching, and a resolved value can never be mistaken for one the filing
+  actually provided.
+- **The first lookup match is not the primary listing.** Labcorp's ISIN returns
+  `0JSY.L` (London) ahead of `LH`. Resolution prefers a plain US-style ticker, then the
+  largest listing. Where the vendor knows *only* a foreign line for a US-domiciled
+  position — it has no `HON` for Honeywell's ISIN, only `ALD.DE` — the ticker is left
+  blank rather than shown wrong; the company name is displayed either way.
 
 N-PORT is quarterly and published ~60 days after the period it covers, so holdings run
 a few months behind. The reporting date is carried through and displayed above every
