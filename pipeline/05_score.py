@@ -1,4 +1,4 @@
-"""Stage 4: risk-adjusted momentum over two formation windows.
+"""Stage 5: risk-adjusted momentum over two formation windows.
 
 Both windows skip the most recent 21 sessions (the "-1", sidestepping short-term
 reversal) and differ only in how far back they reach:
@@ -14,6 +14,7 @@ Inside each window:
 One universe serves both: every fund carries enough history for the longer window,
 so no fund appears in one ranking and vanishes from the other.
 """
+import json
 import math
 import re
 import statistics as st
@@ -33,6 +34,35 @@ LEV = re.compile('|'.join([MULT, ULTRASHORT, ULTRA, r'\bultrapro\b', r'\bleverag
 SHORT = re.compile('|'.join([r'\binverse\b', r'\bbear\b', ULTRASHORT, DIR_SHORT,
                              r'(?<![a-z0-9])-[1-9](?:\.\d)?x\b']), re.I)
 
+def profile(sym):
+    """Cost, size and character from stage 4. Absent fields simply do not render."""
+    path = C.DATA / 'profile' / f'{sym}.json'
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (ValueError, OSError):
+        return {}
+    if not data:
+        return {}
+    p = data[0]
+    sectors = p.get('sectorsList') or []
+    top = max(sectors, key=lambda x: x.get('exposure') or 0) if sectors else None
+    out = {}
+    if p.get('expenseRatio') is not None:
+        out['er'] = round(float(p['expenseRatio']), 3)
+    if p.get('assetsUnderManagement'):
+        out['aum'] = round(float(p['assetsUnderManagement']))
+    if p.get('holdingsCount') is not None:
+        out['hc'] = int(p['holdingsCount'])
+    for key, field in (('iss', 'etfCompany'), ('ac', 'assetClass')):
+        if p.get(field):
+            out[key] = str(p[field])
+    if top and (top.get('exposure') or 0) > 0:
+        out['sec'] = [str(top.get('industry')), round(float(top['exposure']), 1)]
+    return out
+
+
 liq = C.load('liquid.json')
 longest = max(C.WINDOWS.values())
 out, skipped = [], {'no_adj': 0, 'short_history': 0, 'bad_bars': 0}
@@ -50,6 +80,7 @@ for r in liq:
     name = r['name'] or ''
     rec = {'s': sym, 'n': name, 'dv': round(r['medDollarVol']), 'px': r['price'],
            'lev': bool(LEV.search(name)), 'inv': bool(SHORT.search(name))}
+    rec.update(profile(sym))
     bad = False
     for key, total in C.WINDOWS.items():
         win = bars[-(total + 1):len(bars) - C.SKIP]

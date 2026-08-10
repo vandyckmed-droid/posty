@@ -1,4 +1,4 @@
-"""Step 4: correlation features for de-duplication and the diversification readout.
+"""Stage 6: correlation features for de-duplication and the diversification readout.
 
 Correlation has to be measured on whichever formation window is active, so the raw
 daily log returns are stored ONCE (the 6-1 window is exactly the last 105 returns of

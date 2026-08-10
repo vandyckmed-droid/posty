@@ -181,8 +181,9 @@
   }
   .grp-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .grp-toggle .caret { font-size: 9px; opacity: .7; }
+  .grp-toggle .gl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .grp-toggle .rr {
-    margin-left: auto; color: var(--faint); font-weight: 500;
+    margin-left: auto; color: var(--faint); font-weight: 500; white-space: nowrap;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   }
   .grp { border-top: 1px solid var(--line-soft); background: var(--raised); }
@@ -204,6 +205,14 @@
   .mem-s.up { color: var(--pos); }
   .mem-s.dn { color: var(--neg); }
   .mem-r { grid-row: 2; grid-column: 2; font-size: 10px; color: var(--faint); }
+  .mem-r b { font-weight: 600; color: var(--muted); }
+  .mem-r b.cheap { color: var(--pos); }
+  .grp-toggle .cheaper {
+    flex: none;
+    font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    padding: 2px 5px; border-radius: 3px;
+    background: var(--pos-sf); color: var(--pos);
+  }
 
   /* ---------- list ---------- */
   .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
@@ -610,7 +619,7 @@
   //          gearing. This is what separates a sector wager from plain market
   //          exposure, which raw correlation cannot do at any threshold.
   var MODES = {
-    bet:  { src: 'redges', thr: PAYLOAD.residCut, noun: 'the same bet',
+    bet:  { src: 'redges', thr: PAYLOAD.residCut, noun: 'same bet',
             tile: 'folded into<br>the same bet' },
     fund: { src: 'edges',  thr: 0.95,             noun: 'near-identical',
             tile: 'folded into<br>a near-twin' }
@@ -674,7 +683,7 @@
       var rep = list[k2];
       if (taken.has(rep.i)) continue;
       taken.add(rep.i);
-      var mem = [], nb = ADJ.get(rep.i);
+      var mem = [], repCheaper = false, nb = ADJ.get(rep.i);
       if (nb) {
         for (var q = 0; q < nb.length; q += 2) {
           var j = nb[q], rr = nb[q + 1];
@@ -683,9 +692,19 @@
             mem.push({ row: visible.get(j), r: rr });
           }
         }
-        mem.sort(function (a, b) { return b.r - a.r; });
+          mem.sort(function (a, b) { return b.r - a.r; });
+        // Same bet, different price: flag the cheapest option in the group,
+        // representative included, since the ranking cannot see fees at all.
+        var priced = mem.filter(function (m) { return m.row.er != null; });
+        if (priced.length && rep.er != null) {
+          var best = Math.min(rep.er, Math.min.apply(null, priced.map(function (m) { return m.row.er; })));
+          if (best < rep.er - 1e-9) {
+            priced.forEach(function (m) { if (Math.abs(m.row.er - best) < 1e-9) m.cheap = true; });
+            repCheaper = true;
+          }
+        }
       }
-      out.push({ rep: rep, mem: mem });
+      out.push({ rep: rep, mem: mem, cheaper: repCheaper });
     }
     return out;
   }
@@ -723,6 +742,8 @@
   }
   function pct(x) { return (x * 100).toFixed(1) + '%'; }
   function signedPct(x) { return (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%'; }
+  function fee(r) { return r.er == null ? '' : r.er.toFixed(2) + '%'; }
+
   function money(v) {
     if (v >= 1e9) return '$' + (v / 1e9).toFixed(v >= 1e10 ? 0 : 1) + 'B';
     if (v >= 1e6) return '$' + (v / 1e6).toFixed(v >= 1e8 ? 0 : 1) + 'M';
@@ -766,7 +787,9 @@
       '<span class="mem-t mono">' + m.row.s + tags + '</span>' +
       '<span class="mem-s mono ' + (w[HEAD] >= 0 ? 'up' : 'dn') + '">' + w[HEAD].toFixed(2) + '</span>' +
       '<span class="mem-n">' + esc(m.row.n) + '</span>' +
-      '<span class="mem-r mono">r ' + m.r.toFixed(3) + ' · vol ' + pct(w.av) + '</span>' +
+      '<span class="mem-r mono">r ' + m.r.toFixed(3) + ' · vol ' + pct(w.av) +
+        (m.row.er == null ? '' : ' · <b class="' + (m.cheap ? 'cheap' : '') + '">' +
+          fee(m.row) + '</b>') + '</span>' +
     '</div>';
   }
 
@@ -776,7 +799,8 @@
     var range = g.mem.length > 1 ? lo.toFixed(3) + '–' + hi.toFixed(3) : hi.toFixed(3);
     return '<button class="grp-toggle" type="button" aria-expanded="false">' +
         '<span class="caret">▶</span>' +
-        '<span>' + g.mem.length + ' more making ' + MODES[state.grp].noun + '</span>' +
+        '<span class="gl">' + g.mem.length + ' more · ' + MODES[state.grp].noun + '</span>' +
+        (g.cheaper ? '<span class="cheaper">cheaper</span>' : '') +
         '<span class="rr">r ' + range + '</span>' +
       '</button>' +
       '<div class="grp" hidden>' + g.mem.map(memberHTML).join('') + '</div>';
@@ -818,6 +842,16 @@
         '<dt>Formation window</dt><dd class="mono">' + fmtDate(cur.windowStart) + ' → ' + fmtDate(cur.windowEnd) + '</dd>' +
         '<dt>Daily observations</dt><dd class="mono">' + w.obs + '</dd>' +
         '<dt>Last close</dt><dd class="mono">$' + r.px.toFixed(2) + '</dd>' +
+        (r.er == null ? '' :
+          '<dt>Annual fee</dt><dd class="mono' + (r.er >= 1 ? ' dn' : '') + '">' + fee(r) + '</dd>') +
+        (r.aum == null ? '' :
+          '<dt>Fund size</dt><dd class="mono">' + money(r.aum) + '</dd>') +
+        (r.hc == null ? '' :
+          '<dt>Holdings</dt><dd class="mono">' + r.hc.toLocaleString() + '</dd>') +
+        (r.sec == null ? '' :
+          '<dt>Largest sector</dt><dd>' + esc(r.sec[0]) + ' <span class="hint mono">' +
+            r.sec[1].toFixed(0) + '%</span></dd>') +
+        (r.iss == null ? '' : '<dt>Issuer</dt><dd>' + esc(r.iss) + '</dd>') +
         '<dt>Rank on ' + cur.label + '</dt><dd class="mono">#' + w.rk + ' of ' + META.ranked.toLocaleString() + '</dd>' +
         '<dt>Rank on ' + oLabel + ' <span class="hint">score ' + ow[HEAD].toFixed(2) + '</span></dt>' +
           '<dd class="mono">#' + ow.rk + ' <span class="drift ' + (drift > 0 ? 'dn' : drift < 0 ? 'up' : '') + '">' +

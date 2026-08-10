@@ -72,6 +72,15 @@ adjusted**, while semiconductors against each other barely move (0.99 → 0.98).
 Membership is measured **against the representative**, never chained transitively, so
 a group cannot drift into a different bet. Correlations are recomputed per window.
 
+Each group flags **cheaper** when a member costs less than the fund heading it, since
+the ranking cannot see fees at all. That gap is often the only thing separating two
+funds making the identical bet: SOXQ charges 0.19% against SOXX at 0.33% and SMH at
+0.35%, for semiconductor exposure correlated 0.98–1.00.
+
+Per-stock holdings sit behind a higher API tier and are **not** included. What stage 4
+does provide — annual fee, fund size, holdings count, issuer, largest sector — covers
+the decision grouping sets up, and is shown in each row's detail.
+
 The readout reports `N² / ΣΣ|r_ij|` over the top rows shown — the number of unrelated
 holdings carrying the same risk as that basket. Absolute values matter: an inverse
 fund is a perfect hedge against its own long, which is one bet expressed twice, not
@@ -110,9 +119,10 @@ Individual stages:
 | `02_history.py hist` | unadjusted daily bars (the correct basis for dollar volume) |
 | `03_screen.py` | the liquidity screen above |
 | `02_history.py adj` | split- and dividend-adjusted closes for survivors |
-| `04_score.py` | both windows: score, return, vol, rank, excess, cash flag |
-| `05_corr.py` | per-window correlation edges + return vectors for the page |
-| `06_page.py` | inject the payload into `web/etf-momentum.html`, validate |
+| `04_profile.py` | fee, size, holdings count, issuer, sector mix per fund |
+| `05_score.py` | both windows: score, return, vol, rank, excess, cash flag |
+| `06_corr.py` | per-window correlation edges + return vectors for the page |
+| `07_page.py` | inject the payload into `web/etf-momentum.html`, validate |
 
 Fetch stages are **resumable** — completed symbol files are skipped, so re-running
 retries only failures. Data lands in `./data`; override with `ETF_DATA`. To rebuild a
