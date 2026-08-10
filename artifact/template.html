@@ -462,7 +462,7 @@ tr.on .tklink{color:var(--neon)}
 <div class="strip">
   <div class="stat"><span class="k">Screened</span><span class="v" id="s-screened">—</span></div>
   <div class="stat"><span class="k">Liquidity universe</span><span class="v" id="s-univ">—<small>by 63d ADDV</small></span></div>
-  <div class="stat accent"><span class="k">Displayed</span><span class="v" id="s-disp">—<small>top decile</small></span></div>
+  <div class="stat accent"><span class="k">Displayed</span><span class="v" id="s-disp">—</span></div>
   <div class="stat"><span class="k">Median 12-1</span><span class="v" id="s-m12">—</span></div>
   <div class="stat volt"><span class="k">Watchlist</span><span class="v" id="s-watch">0<small>names</small></span></div>
 </div>
@@ -1352,12 +1352,15 @@ new ResizeObserver(() => { if (detail.open) drawChart(); }).observe(canvas);
     d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   document.getElementById("s-screened").textContent = DATA.candidatesScreened.toLocaleString();
-  document.getElementById("s-univ").innerHTML = `${DATA.universeSize}<small>by 63d ADDV</small>`;
-  document.getElementById("s-disp").innerHTML = `${DATA.displaySize}<small>top decile</small>`;
+  document.getElementById("s-univ").innerHTML =
+    `${DATA.universeSize.toLocaleString()}<small>by 63d ADDV</small>`;
+  const share = DATA.displaySize / DATA.universeSize * 100;
+  document.getElementById("s-disp").innerHTML =
+    `${DATA.displaySize}<small>top ${share < 10 ? share.toFixed(1) : Math.round(share)}%</small>`;
   const med = [...ROWS].map(r => r.m12).sort((a, b) => a - b);
   document.getElementById("s-m12").textContent = sgn(med[Math.floor(med.length / 2)], 0);
   document.getElementById("m-screened").textContent = DATA.candidatesScreened.toLocaleString();
-  document.getElementById("m-univ").textContent = DATA.universeSize;
+  document.getElementById("m-univ").textContent = DATA.universeSize.toLocaleString();
 
   const th = document.querySelector('th[data-k="sc"]');
   th.setAttribute("aria-sort", "descending");

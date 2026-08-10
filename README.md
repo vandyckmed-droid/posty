@@ -6,7 +6,7 @@ watchlist builder, backed by Financial Modeling Prep end-of-day data.
 ## Pipeline
 
 ```
-U.S. common stocks  →  top 500 by 63-day ADDV  →  12-1 + 6-1 percentile blend
+U.S. common stocks  →  top 1,000 by 63-day ADDV  →  12-1 + 6-1 percentile blend
                     →  top 100 displayed  →  watchlist  →  126-day inverse-vol weights
                     →  sector counts and sector weight exposure
 ```
@@ -17,7 +17,7 @@ profile; preferred shares, warrants, rights and units are excluded by symbol
 convention. Class shares such as `BRK-B` are kept — they are common stock.
 
 **Liquidity.** 63-trading-day average daily dollar volume,
-`ADDV = mean(close × volume)`. The 500 most liquid eligible names form the
+`ADDV = mean(close × volume)`. The 1,000 most liquid eligible names form the
 ranking universe. Dollar volume is traded notional, so ADDV is the one figure
 computed from unadjusted closes; everything else uses adjusted prices.
 
@@ -28,7 +28,7 @@ gap between total and price-only return reaches 7–9pp for dividend payers
 
 `12-1` is the return from 252 trading days ago to 21 trading days ago; `6-1` runs
 from 126 trading days ago to the same endpoint. Skipping the most recent month
-avoids short-term reversal. Each is percentile-ranked within the 500-name
+avoids short-term reversal. Each is percentile-ranked within the 1,000-name
 universe and blended:
 
 ```

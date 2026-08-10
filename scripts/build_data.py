@@ -9,8 +9,8 @@ Pipeline
    so ADDV alone uses unadjusted closes.
 3. Re-download the liquid head as 2-year dividend-adjusted (total-return) closes.
    Every return, volatility and chart figure downstream uses these.
-4. Keep the top 500 eligible names; compute 12-1 and 6-1 momentum, percentile-rank
-   both, blend 50/50.
+4. Keep the top 1,000 eligible names; compute 12-1 and 6-1 momentum,
+   percentile-rank both, blend 50/50.
 5. Compute 126-day annualized realized volatility (used for inverse-vol weights).
 6. Emit data/momentum.json -- the only thing the artifact ever sees -- including a
    2-year aligned total-return series per displayed name for the detail charts.
@@ -43,9 +43,13 @@ LOOKBACK_12M = 252     # trading days treated as "12 months"
 LOOKBACK_6M = 126      # trading days treated as "6 months"
 TRADING_DAYS_YEAR = 252
 
-UNIVERSE_SIZE = 500    # ranked by ADDV
+UNIVERSE_SIZE = 1000   # ranked by ADDV
 DISPLAY_SIZE = 100     # ranked by combined momentum
-PROFILE_CHECK = 800    # ADDV-ranked names verified as non-ADR common stock
+# ADDV-ranked names verified as non-ADR common stock and pulled as adjusted
+# series. Needs healthy headroom over UNIVERSE_SIZE: names are dropped here for
+# being non-common equity or for lacking the ~14 months of history that 12-1
+# momentum requires, and recent listings get commoner deeper into the ranking.
+PROFILE_CHECK = 1400
 
 # Preferred shares (BAC-PB), warrants (XYZ-WT), rights (XYZ-RT), units (XYZ-UN).
 # Class-share suffixes such as BRK-B / BF-B are genuine common stock and stay.
