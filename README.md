@@ -147,7 +147,7 @@ measured.)
 
 ## Publishing
 
-`06_page.py` emits a standalone file. It is published as a Claude artifact; republish
+`07_page.py` emits a standalone file. It is published as a Claude artifact; republish
 the same path to update in place. The page is a **snapshot** — every figure is fixed
 at the close it was built from and never updates.
 
