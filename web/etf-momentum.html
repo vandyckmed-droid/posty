@@ -338,8 +338,8 @@
     <div class="formula">
       <span>Score</span><span>=</span>
       <span class="frac mono">
-        <span><em><span class="wl">6−1</span> return</em> ann.</span>
-        <span><em><span class="wl">6−1</span> vol</em> ann.</span>
+        <span><em><span class="wl">6−1</span> return</em> − T-bill</span>
+        <span><em><span class="wl">6−1</span> vol</em></span>
       </span>
       <span id="uni"></span>
     </div>
@@ -368,7 +368,7 @@
 
     <div class="rail" role="group" aria-label="Filters">
       <span class="rail-lbl">Hide</span>
-      <button class="chip" id="f-cash" aria-pressed="true">Cash-like</button>
+      <button class="chip" id="f-cash" aria-pressed="false">Cash-like</button>
       <button class="chip" id="f-lev" aria-pressed="false">Leveraged</button>
       <button class="chip" id="f-inv" aria-pressed="false">Inverse</button>
     </div>
@@ -382,8 +382,8 @@
 
     <div class="rail" role="group" aria-label="Sort order">
       <span class="rail-lbl">Sort</span>
-      <button class="chip" data-sort="sc" aria-pressed="true">Score</button>
-      <button class="chip" data-sort="xs" aria-pressed="false">Excess score</button>
+      <button class="chip" data-sort="xs" aria-pressed="true">Score</button>
+      <button class="chip" data-sort="sc" aria-pressed="false">Raw score</button>
       <button class="chip" data-sort="ar" aria-pressed="false">Return</button>
       <button class="chip" data-sort="av" aria-pressed="false">Low vol</button>
       <button class="chip" data-sort="dv" aria-pressed="false">Liquidity</button>
@@ -452,24 +452,43 @@
         <li><b>Score = annualized return ÷ annualized volatility</b></li>
       </ol>
       <p>Both legs are measured on the same window and the same return series, so the score is a
-         unitless figure: how much trend a fund delivered per unit of the noise it made getting
+         unitless figure: how much a fund out-earned cash per unit of the noise it made getting
          there. Returns are annualized in log space, which is what keeps the ratio internally
          consistent — but it also means a fund that fell 97% over the window reports a very large
          negative annualized figure. The <b>total window return</b> in each row's detail is the
          plain, compounded number.</p>
 
-      <h2>Why cash-like funds are hidden by default</h2>
-      <p>No risk-free rate is subtracted, so this is a raw return/volatility ratio, not a Sharpe
-         ratio — and that has one sharp consequence: <b>T-bill funds win.</b> SGOV returned 3.8%
-         annualized against 0.2% volatility, scoring <b>19.5</b>, roughly six times the best real
-         momentum name. Nothing is wrong with the arithmetic; a near-riskless asset simply has a
-         near-zero denominator.</p>
-      <p>Rather than change the formula, the screen tags the <b id="cashn"></b> funds whose
-         annualized volatility is under 3% as <b>cash-like</b> and hides them by default. Tap
-         <b>Cash-like</b> in the Hide row to put them back — their true rank across all funds is
-         always shown in each row's detail. Sorting by <b>Excess score</b> applies the other fix,
-         netting the T-bill return (<b id="rfn"></b>, measured on the same window) out of the
-         numerator before dividing.</p>
+      <h2>Why the T-bill return is netted out</h2>
+      <p>Dividing a raw return by volatility has one sharp consequence: <b>T-bill funds win.</b>
+         On that measure SGOV scored <b>19.5</b> — 3.8% annualized return against 0.2% volatility —
+         roughly six times the best real momentum name. Nothing was wrong with the arithmetic. A
+         near-riskless asset simply has a near-zero denominator, and essentially all of that 3.8%
+         <em>was</em> the risk-free rate.</p>
+      <p>So the numerator is the return <b>in excess of cash</b>, using the 1–3 month T-bill fund's
+         own return over the same window (<b id="rfn"></b>). That makes the score a true Sharpe
+         ratio and fixes the problem at its source rather than filtering around it: SGOV now scores
+         near zero, correctly, because it beat cash by nothing. Above roughly 10% volatility the
+         adjustment is invisible — subtracting 3.6% from a 200% annualized return moves the score
+         by about 0.02.</p>
+      <p>The <b id="cashn"></b> funds with annualized volatility under 3% are still tagged
+         <b>cash-like</b>, and the Hide row can still drop them, but they no longer need hiding to
+         keep the ranking sane. A few genuinely earn their place — an ultra-short credit fund that
+         reliably clears T-bills has a real information ratio, just an unlevered and very small one.
+         The <b>Raw score</b> in each row's detail, and as a sort, is the un-netted ratio.</p>
+
+      <h2>How much to trust a score</h2>
+      <p>A score is an estimate from a sample of daily returns, not a fact about the fund, and its
+         sampling error scales with <code>1/√n</code>. Each row's detail carries a <b>90% confidence
+         interval</b> from the standard Sharpe-ratio standard error,
+         <code>√252 · √((1 + s²/2) / n)</code>. It is wide: roughly <b>±1.7</b> on 12−1 and
+         <b>±2.6</b> on 6−1, against a top-of-list spread of a few tenths. Gaps under about 0.1 are
+         noise, and the shorter window buys its faster reaction with a materially noisier estimate.</p>
+      <p>One important exception. That interval describes the <em>level</em> of a single score.
+         Comparisons between two <em>correlated</em> funds are far sharper, because what matters
+         there is the error on their difference, and highly correlated funds barely differ. SOXX and
+         SOXQ, correlated 0.997, can be ordered with about 87% confidence off a gap of 0.09 — a gap
+         the intervals above would call meaningless. Trust the ranking most within a group, least
+         across the whole list.</p>
 
       <h2>Grouping near-identical funds</h2>
       <p>A score ranks <em>funds</em>, but what you can actually hold is <em>bets</em>, and the two
@@ -517,9 +536,9 @@
       <div class="caveat">
         <b>Snapshot, not a live feed.</b> Every figure is fixed at the close shown in the header and
         will not update. Leveraged and inverse products are ranked alongside everything else because
-        they clear the same liquidity bar — their daily-reset compounding makes a 12-month score mean
-        something different, so the filters above let you drop them. Momentum rank is a starting screen,
-        not a recommendation, and says nothing about what happens next.
+        they clear the same liquidity bar — their daily-reset compounding makes a multi-month score
+        mean something different, so the Hide row lets you drop them. Momentum rank is a starting
+        screen, not a recommendation, and says nothing about what happens next.
       </div>
     </div>
   </details>
@@ -586,6 +605,11 @@
     return m;
   }
 
+  function scoreSE(S, n) {
+    var s = S / Math.sqrt(252);                    // back to per-day units
+    return Math.sqrt(252) * Math.sqrt((1 + s * s / 2) / n);
+  }
+
   function pairCorr(V, a, b) {
     var oa = a * V.obs, ob = b * V.obs, s = 0;
     for (var t = 0; t < V.obs; t++) s += V.a[oa + t] * V.a[ob + t];
@@ -635,14 +659,16 @@
     return out;
   }
 
-  var state = { win: '6', q: '', liq: 5000000, hideCash: true, hideLev: false,
-                hideInv: false, sort: 'sc', grp: 0.95, limit: PAGE };
+  // The headline score nets out the T-bill return, which is what stops cash proxies
+  // from dominating -- so unlike the raw ratio, cash-like funds need no hiding.
+  var HEAD = 'xs';
+  var state = { win: '6', q: '', liq: 5000000, hideCash: false, hideLev: false,
+                hideInv: false, sort: HEAD, grp: 0.95, limit: PAGE };
 
   var $ = function (id) { return document.getElementById(id); };
   var list = $('list'), moreBtn = $('more'), emptyEl = $('empty');
 
   $('asof').textContent = fmtDate(META.asOf);
-  $('uni').textContent = '· ' + META.ranked.toLocaleString() + ' funds';
   $('total').textContent = META.ranked.toLocaleString();
 
   function paintWindow() {
@@ -653,6 +679,7 @@
     });
     $('winrange').textContent = fmtDate(w.windowStart) + ' → ' + fmtDate(w.windowEnd) +
       ' · ' + w.obs + 'd';
+    $('uni').textContent = 'ann. · net of ' + (w.rf * 100).toFixed(2) + '% T-bill';
     $('cashn').textContent = w.cashCount;
     $('rfn').textContent = (w.rf * 100).toFixed(2) + '%';
   }
@@ -704,7 +731,7 @@
     if (m.row.inv) tags += '<span class="tag">Inv</span>';
     return '<div class="mem">' +
       '<span class="mem-t mono">' + m.row.s + tags + '</span>' +
-      '<span class="mem-s mono ' + (w.sc >= 0 ? 'up' : 'dn') + '">' + w.sc.toFixed(2) + '</span>' +
+      '<span class="mem-s mono ' + (w[HEAD] >= 0 ? 'up' : 'dn') + '">' + w[HEAD].toFixed(2) + '</span>' +
       '<span class="mem-n">' + esc(m.row.n) + '</span>' +
       '<span class="mem-r mono">r ' + m.r.toFixed(3) + ' · vol ' + pct(w.av) + '</span>' +
     '</div>';
@@ -726,8 +753,9 @@
     var w = M(r), cur = W();
     var other = state.win === '12' ? '6' : '12';
     var ow = r['w' + other], oLabel = WIN[other].label;
+    var ci = 1.645 * scoreSE(w[HEAD], w.obs);      // 90% interval
     var drift = ow.rk - w.rk;               // positive => ranks WORSE on the other window
-    var cls = w.sc >= 0 ? 'up' : 'dn';
+    var cls = w[HEAD] >= 0 ? 'up' : 'dn';
     var tags = '';
     if (r.lev) tags += '<span class="tag lev">Lev</span>';
     if (r.inv) tags += '<span class="tag">Inv</span>';
@@ -739,10 +767,10 @@
           '<span class="tkr-line"><span class="tkr mono">' + r.s + '</span>' + tags + '</span>' +
           '<span class="nm">' + esc(r.n) + '</span>' +
         '</span>' +
-        '<span class="sc-cell"><span class="sc mono ' + cls + '">' + w.sc.toFixed(2) + '</span>' +
+        '<span class="sc-cell"><span class="sc mono ' + cls + '">' + w[HEAD].toFixed(2) + '</span>' +
         '<span class="sc-lbl">Score</span></span>' +
       '</button>' +
-      meter(w.sc) +
+      meter(w[HEAD]) +
       '<dl class="stats">' +
         '<div class="stat"><dt>Ann. return</dt><dd class="mono ' + (w.ar >= 0 ? 'up' : 'dn') + '">' + signedPct(w.ar) + '</dd></div>' +
         '<div class="stat"><dt>Ann. vol</dt><dd class="mono">' + pct(w.av) + '</dd></div>' +
@@ -750,13 +778,15 @@
       '</dl>' +
       '<div class="detail" hidden><dl>' +
         '<dt>Total window return</dt><dd class="mono ' + (w.tr >= 0 ? 'up' : 'dn') + '">' + signedPct(w.tr) + '</dd>' +
-        '<dt>Excess score <span class="hint">(net of ' + pct(cur.rf) + ' T-bill)</span></dt>' +
-          '<dd class="mono ' + (w.xs >= 0 ? 'up' : 'dn') + '">' + w.xs.toFixed(2) + '</dd>' +
+        '<dt>90% confidence interval <span class="hint">on the score</span></dt>' +
+          '<dd class="mono">' + (w[HEAD] - ci).toFixed(2) + ' – ' + (w[HEAD] + ci).toFixed(2) + '</dd>' +
+        '<dt>Raw score <span class="hint">no T-bill deducted</span></dt>' +
+          '<dd class="mono ' + (w.sc >= 0 ? 'up' : 'dn') + '">' + w.sc.toFixed(2) + '</dd>' +
         '<dt>Formation window</dt><dd class="mono">' + fmtDate(cur.windowStart) + ' → ' + fmtDate(cur.windowEnd) + '</dd>' +
         '<dt>Daily observations</dt><dd class="mono">' + w.obs + '</dd>' +
         '<dt>Last close</dt><dd class="mono">$' + r.px.toFixed(2) + '</dd>' +
         '<dt>Rank on ' + cur.label + '</dt><dd class="mono">#' + w.rk + ' of ' + META.ranked.toLocaleString() + '</dd>' +
-        '<dt>Rank on ' + oLabel + ' <span class="hint">score ' + ow.sc.toFixed(2) + '</span></dt>' +
+        '<dt>Rank on ' + oLabel + ' <span class="hint">score ' + ow[HEAD].toFixed(2) + '</span></dt>' +
           '<dd class="mono">#' + ow.rk + ' <span class="drift ' + (drift > 0 ? 'dn' : drift < 0 ? 'up' : '') + '">' +
           (drift === 0 ? '=' : (drift > 0 ? '▼' : '▲') + Math.abs(drift)) + '</span></dd>' +
       '</dl>' + (r.n.length > 34 ? '<p class="note">' + esc(r.n) + '</p>' : '') + '</div>' +
@@ -805,7 +835,7 @@
 
     var medline = '';
     if (rows.length) {
-      var scores = rows.map(function (r) { return M(r).sc; }).sort(function (a, b) { return a - b; });
+      var scores = rows.map(function (r) { return M(r)[HEAD]; }).sort(function (a, b) { return a - b; });
       medline = 'median score ' + scores[Math.floor(scores.length / 2)].toFixed(2);
     }
     $('medline').textContent = medline;

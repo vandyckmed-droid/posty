@@ -78,17 +78,17 @@ for (const scheme of ['light', 'dark']) {
   await p.waitForTimeout(120);
   const liqTop = await p.locator('.tkr').first().textContent();
   await p.locator('[data-liq="5000000"]').click();
-  await p.locator('[data-sort="xs"]').click();
+  await p.locator('[data-sort="sc"]').click();          // raw ratio, no T-bill netted
   await p.waitForTimeout(120);
-  const xsTop = await p.locator('.tkr').first().textContent();
-  await p.locator('[data-sort="sc"]').click();
+  const rawTop = await p.locator('.tkr').first().textContent();
+  await p.locator('[data-sort="xs"]').click();          // back to the headline score
   await p.locator('#q').fill('semiconductor');
   await p.waitForTimeout(150);
   const searchN = await p.locator('.row').count();
   await p.locator('#q').fill('');
   await p.waitForTimeout(120);
 
-  console.log(scheme, `cashOn=${withCash} liq500M=${liqTop} byExcess=${xsTop} search"semiconductor"=${searchN} rows`);
+  console.log(scheme, `cashOn=${withCash} liq500M=${liqTop} byRaw=${rawTop} search"semiconductor"=${searchN} rows`);
 
   if (scheme === 'light') {
     // grouping + effective-bets checks against independently computed values

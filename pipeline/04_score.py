@@ -83,20 +83,23 @@ for r in liq:
         continue
     out.append(rec)
 
-# Rank and the risk-free-excess variant, computed independently per window.
+# The headline score nets out the T-bill return, so that has to exist before anything
+# is ranked -- ranking on the raw ratio would order the list differently from the way
+# the page displays it. Computed independently per window.
 meta_win = {}
 for key in C.WINDOWS:
     w = 'w' + key
-    out.sort(key=lambda x: -x[w]['sc'])
-    for i, o in enumerate(out, 1):
-        o[w]['rk'] = i
     by = {o['s']: o for o in out}
     rf_src = next((s for s in ('BIL', 'SGOV', 'SHV') if s in by), None)
     rf = by[rf_src][w]['ar'] if rf_src else 0.0
     for o in out:
         o[w]['xs'] = round((o[w]['ar'] - rf) / o[w]['av'], 4)
-    # Meter scale from the non-cash population; outliers clamp rather than squash it.
-    ns = sorted(o[w]['sc'] for o in out if not o[w]['cash'])
+    out.sort(key=lambda x: -x[w]['xs'])
+    for i, o in enumerate(out, 1):
+        o[w]['rk'] = i
+    # Meter scale for the headline (excess) score. Netting out the T-bill return
+    # collapses the cash-proxy outliers, so the whole population can set the scale.
+    ns = sorted(o[w]['xs'] for o in out)
     lo = min(-1.0, round(ns[int(len(ns) * 0.005)] - 0.2, 1))
     hi = round(ns[int(len(ns) * 0.995)] + 0.2, 1)
     meta_win[key] = {
@@ -110,7 +113,7 @@ for key in C.WINDOWS:
     print(f"{key}-1: {m['windowStart']} -> {m['windowEnd']}  n={m['obs']}  "
           f"rf={rf:.2%} ({rf_src})  cash-like={m['cashCount']}  domain={[lo, hi]}")
 
-out.sort(key=lambda x: -x['w12']['sc'])          # stable base order
+out.sort(key=lambda x: -x['w12']['xs'])          # stable base order
 for key in C.WINDOWS:
     for o in out:
         o['w' + key].pop('w0', None)             # identical for every fund; lives in meta
@@ -135,5 +138,5 @@ C.save('ranked.json', {'meta': {
 print(f'\nranked: {len(out):,}   skipped: {skipped}')
 for key in C.WINDOWS:
     w = 'w' + key
-    top = sorted((o for o in out if not o[w]['cash']), key=lambda x: -x[w]['sc'])[:5]
-    print(f'top 5 on {key}-1: ' + ', '.join(f"{o['s']} {o[w]['sc']:.2f}" for o in top))
+    top = sorted(out, key=lambda x: x[w]['rk'])[:5]
+    print(f'top 5 on {key}-1: ' + ', '.join(f"{o['s']} {o[w]['xs']:.2f}" for o in top))

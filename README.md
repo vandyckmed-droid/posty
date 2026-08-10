@@ -1,7 +1,7 @@
 # posty
 
 A risk-adjusted momentum screen over every liquid US-listed ETF, built for a phone
-screen. It ranks funds by return per unit of volatility, folds near-identical funds
+screen. It ranks funds by excess return per unit of volatility, folds near-identical funds
 together so the list shows *bets* rather than tickers, and reports how many
 independent bets the top of the list actually contains.
 
@@ -14,7 +14,7 @@ For each fund, over a **formation window** that stops 21 trading sessions short 
 today (the "−1", which sidesteps short-term reversal):
 
 1. Daily log returns `r_t = ln(P_t / P_t−1)` on **split- and dividend-adjusted** closes
-2. Annualized return = `sum(r) × 252/n`
+2. Annualized return = `sum(r) × 252/n`, less the T-bill return over the same window
 3. Annualized volatility = `stdev(r) × √252`
 4. **Score = (2) ÷ (3)**
 
@@ -25,10 +25,17 @@ Two windows, ranked over the same universe so they stay directly comparable:
 | **6−1** | `t−126 … t−21` | 105 | fresher trends, noisier estimate (default) |
 | **12−1** | `t−252 … t−21` | 231 | the classic academic window, slower to turn |
 
-No risk-free rate is subtracted, so this is a raw return/volatility ratio rather than
-a Sharpe ratio. An **excess score** — the same figure net of the T-bill return over
-the same window, taken from BIL's own return — is computed alongside it and available
-as a sort.
+The numerator is the return **in excess of cash**, using the 1–3 month T-bill fund's
+own return over the same window, which makes the score a Sharpe ratio. Without that
+subtraction T-bill funds win outright — SGOV scored 19.5 on the raw ratio, since a
+near-riskless asset has a near-zero denominator and essentially all of its return
+*was* the risk-free rate. Above ~10% volatility the adjustment is invisible. The
+un-netted **raw score** is kept in each row's detail and as a sort.
+
+Each row also carries a **90% confidence interval** from the Sharpe-ratio standard
+error `√252 · √((1 + s²/2) / n)` — roughly ±1.7 on 12−1 and ±2.6 on 6−1. Gaps under
+about 0.1 are noise. The exception: comparisons between *correlated* funds are far
+sharper, because what matters is the error on their difference.
 
 ## Universe
 
@@ -120,16 +127,15 @@ at the close it was built from and never updates.
 
 Deliberately unresolved, recorded here so they are not lost:
 
-- **Raw vs excess as the headline score.** Raw is what the screen currently shows.
-  Excess is the more principled default — it fixes the cash-equivalent problem at the
-  source instead of relying on the cash-like filter — and changes essentially nothing
-  above ~10% volatility.
-- **Whether to show the score's confidence interval.** The page prints two decimals,
-  which reads more precisely than the estimate deserves, especially on 6−1.
 - **Market-residual grouping.** Raw correlation cannot separate a sector bet from
   plain market exposure. Stripping the universe's first principal component (rather
   than a chosen equity benchmark) would handle mixed asset classes automatically —
-  bonds and commodities load near zero on it and would barely move. Not built; it may
-  also be that ~2 independent bets in the top 10 is simply true.
+  bonds and commodities load near zero on it and would barely move — PC1 is discovered
+  from the data rather than chosen, so nothing is measured against a benchmark it has
+  no business being compared to. The catch is that PC1 is refitted per window, so it is
+  not a stable, nameable thing across rebuilds. Not built; it may also be that ~2
+  independent bets in the top 10 is simply true.
 - **The 3% volatility cash cutoff** and the exclusion of 32 liquid funds that have
-  6−1 history but not 12−1. Both are documented in the page.
+  6−1 history but not 12−1. Both are documented in the page. Cash-like funds are now
+  tagged but shown by default, since netting out the T-bill return removes the reason
+  to hide them.
