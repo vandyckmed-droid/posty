@@ -43,11 +43,9 @@ missing = used - defined
 if missing:
     errs.append('tokens used but not defined in bare :root: ' + ', '.join(sorted(missing)))
 
-# every element that references an id in JS must exist in the markup
+# every id the script reaches for must exist in the markup (derived, not hardcoded)
 ids = set(re.findall(r'id="([\w-]+)"', html))
-for want in ('asof', 'uni', 'total', 'medline', 'list', 'more', 'empty', 'grpline',
-             'q', 'f-cash', 'f-lev', 'f-inv', 'cashn', 'rfn', 'data',
-             'ro-shown', 'ro-grp', 'ro-bets', 'pc1n', 'rescut', 'ro-grp-l', 'f-stk'):
+for want in sorted(set(re.findall(r"getElementById\('([\w-]+)'\)", html))):
     if want not in ids:
         errs.append('missing id: ' + want)
 

@@ -174,6 +174,35 @@ the score ordering inside the cluster is real. (It generally is not: the 90% CI 
 *between correlated funds* are much tighter, because their difference is precisely
 measured.)
 
+## Curated run
+
+A second, deliberately narrow build: a fixed list of sector and thematic ETFs ranked by
+one hardwired score, with no filters to set.
+
+```bash
+export ETF_DATA=data-curated ETF_UNIVERSE=universe/curated.txt
+make all
+python3 pipeline/08_page.py web/etf-curated.html $ETF_DATA/etf-curated.build.html
+node tools/preview-curated.mjs $ETF_DATA/etf-curated.build.html $ETF_DATA
+```
+
+`ETF_UNIVERSE` pins the universe to that file and switches the pipeline's behaviour:
+stage 1 skips discovery entirely, stage 3 **measures liquidity but stops gating on it**
+(the list is the universe), and stage 5 fetches holdings for every name regardless of
+how the vendor classifies it. The risk-free reference (BIL) is fetched but never
+ranked, since a curated list has no reason to contain a T-bill fund.
+
+The score is a fixed 50/50 blend: `0.5 × (12−1 return ÷ sigma) + 0.5 × (6−1 return ÷
+sigma)`, using the same window conventions as the main screen. Here the numerator is
+the plain return, as specified for this build; the T-bill-netted blend is carried as
+`cbNet` and shown in each row's detail. The choice moves no fund more than 8 places.
+
+Rows carry a normalised price path covering the full 12 months **including** the
+skipped final month, drawn shaded so it reads as context. Each fund also gets its
+`near`est relative — the one other fund in the universe that moves most like it once
+the market factor is removed — which surfaces near-duplicate exposures without adding
+a control.
+
 ## Publishing
 
 `08_page.py` emits a standalone file. It is published as a Claude artifact; republish

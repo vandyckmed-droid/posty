@@ -1,0 +1,108 @@
+# Curated ETF universe. Format: TICKER | CATEGORY | LABEL
+# Hardwired: this file IS the universe. Nothing is added or screened out.
+XLC  | Sectors | Communication Services
+XLY  | Sectors | Consumer Discretionary
+XLP  | Sectors | Consumer Staples
+XLE  | Sectors | Energy
+XLF  | Sectors | Financials
+XLV  | Sectors | Health Care
+XLI  | Sectors | Industrials
+XLB  | Sectors | Materials
+XLRE | Sectors | Real Estate
+XLK  | Sectors | Technology
+XLU  | Sectors | Utilities
+SOXX | Technology | Semiconductors
+DRAM | Technology | Memory Semiconductors
+IGV  | Technology | Software
+CIBR | Technology | Cybersecurity
+SKYY | Technology | Cloud Computing
+FDN  | Technology | Internet
+SOCL | Technology | Social Media
+FINX | Technology | Financial Technology
+IPAY | Technology | Digital Payments
+BKCH | Technology | Blockchain Companies
+SNSR | Technology | Internet of Things
+UFOX | Technology | 5G/6G and Satellite Connectivity
+DTCR | Technology | Data Centers and Digital Infrastructure
+ROBO | Technology | Robotics and Automation
+AIQ  | Technology | Artificial Intelligence and Technology
+QTUM | Technology | Quantum Computing and Machine Learning
+PRNT | Technology | 3D Printing
+TINY | Technology | Nanotechnology
+LYTE | Technology | Photonics and Optics
+METV | Technology | Metaverse
+IYZ  | Technology | Telecommunications
+XBI  | Health Care | Biotechnology
+IHE  | Health Care | Pharmaceuticals
+IHI  | Health Care | Medical Devices
+IHF  | Health Care | Health Care Providers
+GNOM | Health Care | Genomics and Biotechnology
+HEAL | Health Care | Health Care Technology
+IBRN | Health Care | Neuroscience and Health Care
+OZEM | Health Care | GLP-1 and Weight-Loss Treatments
+AGNG | Health Care | Aging Population
+KRE  | Financials | Regional Banks
+KBE  | Financials | Banks
+KIE  | Financials | Insurance
+KCE  | Financials | Capital Markets
+BIZD | Financials | Business Development Companies
+GPZ  | Financials | Alternative Asset Managers
+XRT  | Consumer | Retail
+IBUY | Consumer | Online Retail
+PBJ  | Consumer | Food and Beverage
+PEJ  | Consumer | Leisure and Entertainment
+BETZ | Consumer | Sports Betting and iGaming
+HERO | Consumer | Video Games and Esports
+AWAY | Consumer | Travel Technology
+BEDZ | Consumer | Hotels
+PAWZ | Consumer | Pet Care
+MJ   | Consumer | Cannabis Industry
+MUSQ | Consumer | Music Industry
+XAR  | Industrials | Aerospace and Defense
+SHLD | Industrials | Defense Technology
+UFO  | Industrials | Space Industry
+XTN  | Industrials | Transportation
+JETS | Industrials | Airlines
+BOAT | Industrials | Maritime Shipping
+SEA  | Industrials | Air Cargo and Shipping
+SUPL | Industrials | Supply Chain Logistics
+PAVE | Industrials | US Infrastructure Development
+IFRA | Industrials | US Infrastructure Owners and Enablers
+AIRR | Industrials | US Industrial Renaissance
+EVX  | Industrials | Environmental Services
+XHB  | Real Estate | Homebuilders and Housing
+REZ  | Real Estate | Residential/Health Care/Self-Storage
+REM  | Real Estate | Mortgage Real Estate
+INDS | Real Estate | Industrial Real Estate
+NETL | Real Estate | Net Lease Real Estate
+DESK | Real Estate | Office and Commercial Real Estate
+XOP  | Energy | Oil and Gas Exploration and Production
+OIH  | Energy | Oilfield Services
+AMLP | Energy | Midstream Energy
+FCG  | Energy | Natural Gas Producers
+CRAK | Energy | Oil Refiners
+COAL | Energy | Coal Producers
+URA  | Clean Energy | Uranium
+NLR  | Clean Energy | Nuclear Energy
+ICLN | Clean Energy | Clean Energy
+TAN  | Clean Energy | Solar Energy
+FAN  | Clean Energy | Wind Energy
+HYDR | Clean Energy | Hydrogen
+RNRG | Clean Energy | Renewable Energy Producers
+DRIV | Clean Energy | Autonomous and Electric Vehicles
+LIT  | Clean Energy | Lithium and Battery Technology
+CTEC | Clean Energy | Climate Technology
+ZAP  | Clean Energy | US Electrification
+GRID | Clean Energy | Smart Grid and Electrical Infrastructure
+XME  | Materials | Metals and Mining
+GDX  | Materials | Gold Miners
+SIL  | Materials | Silver Miners
+COPX | Materials | Copper Miners
+REMX | Materials | Rare Earth and Strategic Metals
+SLX  | Materials | Steel
+NIKL | Materials | Nickel Miners
+TINT | Materials | Smart Materials
+WOOD | Materials | Timber and Forestry
+MOO  | Materials | Agribusiness
+KROP | Materials | Agricultural Technology and Food Innovation
+PHO  | Materials | Water Industry

@@ -11,6 +11,17 @@ import common as C
 PREFILTER_DOLLAR_VOL = 300_000
 US_TICKER = re.compile(r'[A-Z]{2,5}\Z')
 
+pinned = C.curated_universe()
+if pinned:
+    candidates = [{'symbol': t, 'name': label or t, 'price': None, 'dvToday': None,
+                   'cat': cat, 'label': label} for t, cat, label in pinned]
+    C.save('candidates.json', candidates)
+    C.save('universe.json', {'vendorList': None, 'usListed': None, 'quoted': None,
+                             'candidates': len(candidates), 'pinned': True,
+                             'source': C.UNIVERSE_FILE})
+    print(f'pinned universe: {len(candidates)} tickers from {C.UNIVERSE_FILE}')
+    raise SystemExit(0)
+
 listing = C.get('etf-list')
 print(f'vendor ETF list: {len(listing):,}')
 

@@ -37,6 +37,11 @@ SHORT = re.compile('|'.join([r'\binverse\b', r'\bbear\b', ULTRASHORT, DIR_SHORT,
 liq = C.load('liquid.json')
 longest = max(C.WINDOWS.values())
 out, skipped = [], {'no_adj': 0, 'short_history': 0, 'bad_bars': 0}
+excluded = []                       # named, with the reason, rather than silently dropped
+_seen = {r['symbol'] for r in liq}
+for c in C.load('candidates.json'):
+    if c['symbol'] not in _seen:
+        excluded.append([c['symbol'], 'no price data from the vendor'])
 
 for r in liq:
     sym = r['symbol']
@@ -46,11 +51,16 @@ for r in liq:
         continue
     if len(bars) < longest + 1:
         skipped['short_history'] += 1
+        excluded.append([sym, f'only {len(bars)} sessions, needs {longest + 1}'])
         continue
 
     name = r['name'] or ''
     rec = {'s': sym, 'n': name, 'dv': round(r['medDollarVol']), 'px': r['price'],
            'lev': bool(LEV.search(name)), 'inv': bool(SHORT.search(name))}
+    if r.get('cat'):
+        rec['cat'] = r['cat']
+    if r.get('label'):
+        rec['lab'] = r['label']
     rec.update(C.profile(sym))
     rec.update(C.holdings(sym))
     bad = False
@@ -84,6 +94,14 @@ for r in liq:
     if bad:
         skipped['bad_bars'] += 1
         continue
+
+    path = [b['adjClose'] for b in bars[-(longest + C.SKIP + 1):]]
+    if len(path) > 8:
+        step = max(1, len(path) // 60)
+        pts = path[::step] + [path[-1]]
+        base = pts[0] or 1.0
+        rec['sp'] = [round(v / base * 100, 2) for v in pts]
+        rec['spSkip'] = round(C.SKIP / len(path), 4)   # where the scored window ends
     out.append(rec)
 
 # The headline score nets out the T-bill return, so that has to exist before anything
@@ -94,7 +112,20 @@ for key in C.WINDOWS:
     w = 'w' + key
     by = {o['s']: o for o in out}
     rf_src = next((s for s in ('BIL', 'SGOV', 'SHV') if s in by), None)
-    rf = by[rf_src][w]['ar'] if rf_src else 0.0
+    if rf_src:
+        rf = by[rf_src][w]['ar']
+    else:
+        # A curated universe need not contain a T-bill fund. Rather than let the
+        # risk-free leg silently collapse to zero, read the reference series that
+        # stage 2 stores alongside the universe.
+        lookback = C.WINDOWS[key]        # NOT `total`, which leaks from the fund loop
+        ref = C.bars_for('BIL', 'adj', 'adjClose')
+        rf, rf_src = 0.0, None
+        if len(ref) >= lookback + 1:
+            rwin = ref[-(lookback + 1):len(ref) - C.SKIP]
+            rc = [b['adjClose'] for b in rwin]
+            rf = sum(math.log(rc[i] / rc[i - 1]) for i in range(1, len(rc))) * 252.0 / (len(rc) - 1)
+            rf_src = 'BIL (reference, not ranked)'
     for o in out:
         o[w]['xs'] = round((o[w]['ar'] - rf) / o[w]['av'], 4)
     out.sort(key=lambda x: -x[w]['xs'])
@@ -116,7 +147,23 @@ for key in C.WINDOWS:
     print(f"{key}-1: {m['windowStart']} -> {m['windowEnd']}  n={m['obs']}  "
           f"rf={rf:.2%} ({rf_src})  cash-like={m['cashCount']}  domain={[lo, hi]}")
 
-out.sort(key=lambda x: -x['w12']['xs'])          # stable base order
+# Combined score: a fixed 50/50 blend of the two windows, each leg being that
+# window's return divided by that window's sigma, exactly as specified. The
+# T-bill-netted blend is carried alongside for reference -- it costs each fund
+# rf/sigma, so it penalises the low-volatility names and is not identical in rank.
+for o in out:
+    o['cb'] = round(sum(C.COMBINED_WEIGHTS[k] * o['w' + k]['sc'] for k in C.WINDOWS), 4)
+    o['cbNet'] = round(sum(C.COMBINED_WEIGHTS[k] * o['w' + k]['xs'] for k in C.WINDOWS), 4)
+out.sort(key=lambda x: -x['cb'])
+for i, o in enumerate(out, 1):
+    o['crk'] = i
+cbs = sorted(o['cb'] for o in out)
+meta_combined = {
+    'weights': C.COMBINED_WEIGHTS,
+    'domain': [min(-1.0, round(cbs[0] - 0.2, 1)), round(cbs[-1] + 0.2, 1)],
+}
+
+out.sort(key=lambda x: -x['cb'])                 # presentation order
 for key in C.WINDOWS:
     for o in out:
         o['w' + key].pop('w0', None)             # identical for every fund; lives in meta
@@ -135,7 +182,11 @@ C.save('ranked.json', {'meta': {
     'liquidityPassed': len(liq), 'ranked': len(out),
     'minDollarVol': C.MIN_DOLLAR_VOL, 'minPrice': C.MIN_PRICE,
     'liqWindow': C.LIQ_WINDOW, 'skip': C.SKIP, 'cashVol': C.CASH_VOL,
-    'win': meta_win,
+    'win': meta_win, 'combined': meta_combined,
+    'pinned': bool(C.curated_universe()),
+    'universeSize': len(C.load('candidates.json')),
+    'categories': len({o.get('cat') for o in out if o.get('cat')}) or None,
+    'excluded': excluded,
 }, 'rows': out})
 
 print(f'\nranked: {len(out):,}   skipped: {skipped}')
@@ -143,3 +194,7 @@ for key in C.WINDOWS:
     w = 'w' + key
     top = sorted(out, key=lambda x: x[w]['rk'])[:5]
     print(f'top 5 on {key}-1: ' + ', '.join(f"{o['s']} {o[w]['xs']:.2f}" for o in top))
+print('\ntop 12 combined (0.5 x 12-1 + 0.5 x 6-1):')
+for o in sorted(out, key=lambda x: x['crk'])[:12]:
+    print(f"  {o['crk']:>3} {o['s']:<5} {o['cb']:6.2f}  "
+          f"(12-1 {o['w12']['sc']:5.2f} / 6-1 {o['w6']['sc']:5.2f})  {o.get('lab','')[:34]}")

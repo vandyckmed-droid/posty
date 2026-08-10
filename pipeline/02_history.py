@@ -13,6 +13,10 @@ ENDPOINT = 'historical-price-eod/full' if SUBDIR == 'hist' else 'historical-pric
 SOURCE = 'candidates.json' if SUBDIR == 'hist' else 'liquid.json'
 
 rows = C.load(SOURCE)
+# The risk-free reference is fetched but never ranked: a curated universe has no
+# reason to contain a T-bill fund, and the score still needs the rate.
+if SUBDIR == 'adj' and C.curated_universe() and not any(r['symbol'] == 'BIL' for r in rows):
+    rows = rows + [{'symbol': 'BIL'}]
 out = C.DATA / SUBDIR
 out.mkdir(parents=True, exist_ok=True)
 

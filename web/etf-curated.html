@@ -1,0 +1,366 @@
+<title>ETF Momentum</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --ground:   #EFF0F4;
+    --surface:  #FFFFFF;
+    --raised:   #F6F7F9;
+    --line:     #DCDEE6;
+    --line-soft:#E9EAF0;
+    --ink:      #141821;
+    --muted:    #666E80;
+    --faint:    #8B93A4;
+    --accent:   #3D4DBF;
+    --accent-sf:#E7E9FA;
+    --pos:      #1A7A5E;
+    --pos-sf:   #D6EDE4;
+    --neg:      #A8452C;
+    --shadow:   0 1px 2px rgba(20,24,33,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0E1117; --surface:#171B23; --raised:#1E232D; --line:#2A303C;
+      --line-soft:#232833; --ink:#E5E8EF; --muted:#8B93A6; --faint:#6C7488;
+      --accent:#8B97F2; --accent-sf:#242A47; --pos:#41BC91; --pos-sf:#16342A;
+      --neg:#E27C60; --shadow:0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0E1117; --surface:#171B23; --raised:#1E232D; --line:#2A303C;
+    --line-soft:#232833; --ink:#E5E8EF; --muted:#8B93A6; --faint:#6C7488;
+    --accent:#8B97F2; --accent-sf:#242A47; --pos:#41BC91; --pos-sf:#16342A;
+    --neg:#E27C60; --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.4; -webkit-text-size-adjust: 100%;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 540px; margin: 0 auto; padding: 0 11px; }
+
+  /* ---------- header: everything here is fixed, so it states rather than offers ---- */
+  .hd {
+    position: sticky; top: 0; z-index: 20; background: var(--ground);
+    border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top);
+  }
+  .hd-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 9px 0 5px; }
+  h1 { margin: 0; font-size: 15.5px; font-weight: 650; letter-spacing: -.01em; }
+  .asof { font-size: 10.5px; color: var(--muted); white-space: nowrap; letter-spacing: .04em; text-transform: uppercase; }
+  .asof b { color: var(--ink); font-weight: 600; letter-spacing: 0; }
+  .rule {
+    font-size: 11px; color: var(--muted); padding-bottom: 8px; line-height: 1.45;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  .rule b { color: var(--ink); font-weight: 600; }
+  .search {
+    width: 100%; font: inherit; font-size: 16px; padding: 8px 11px; margin: 0 0 9px;
+    border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .search::placeholder { color: var(--faint); }
+  .search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+  .count { display: flex; justify-content: space-between; font-size: 11px; color: var(--faint); padding: 8px 0 7px; }
+
+  /* ---------- ranked list ---------- */
+  .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .row { background: var(--surface); border: 1px solid var(--line-soft); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .row-hd {
+    display: grid; grid-template-columns: 26px minmax(0,1fr) 62px 54px;
+    align-items: center; gap: 8px; width: 100%; min-height: 54px; padding: 8px 10px;
+    font: inherit; text-align: left; color: inherit; background: none; border: 0; cursor: pointer;
+  }
+  .row-hd:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .rk { font-size: 12px; font-weight: 600; color: var(--faint); text-align: right; }
+  .row[data-top="1"] .rk { color: var(--accent); }
+  .id { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .tkr-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+  .tkr { flex: none; font-size: 14.5px; font-weight: 650; letter-spacing: .01em; }
+  .cat {
+    flex: 1 1 auto; min-width: 0; font-size: 8.5px; color: var(--faint);
+    letter-spacing: .06em; text-transform: uppercase;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .lab {
+    display: block; min-width: 0; font-size: 11px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .spark { width: 62px; height: 26px; display: block; }
+  .sc { font-size: 19px; font-weight: 620; letter-spacing: -.02em; text-align: right; line-height: 1.1; }
+  .sc.up { color: var(--pos); } .sc.dn { color: var(--neg); }
+  .legs {
+    display: flex; gap: 10px; padding: 0 10px 8px 44px;
+    font-size: 10.5px; color: var(--faint);
+  }
+  .legs b { color: var(--muted); font-weight: 600; }
+
+  /* ---------- detail ---------- */
+  .detail { border-top: 1px solid var(--line-soft); background: var(--raised); padding: 9px 11px 11px; }
+  .detail dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; }
+  .detail dt { color: var(--muted); }
+  .detail dd { margin: 0; text-align: right; font-weight: 550; }
+  .detail .hint { color: var(--faint); font-size: 10.5px; }
+  .chart { width: 100%; height: 96px; display: block; margin: 4px 0 10px; }
+  .blk { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line-soft); }
+  .blk-h { font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-bottom: 5px; }
+  .blk-h span { display: block; margin-top: 2px; letter-spacing: 0; text-transform: none; font-size: 9.5px; }
+  .bar-row { display: grid; grid-template-columns: 44px minmax(0,1fr) 52px 44px; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .bar-row.two { grid-template-columns: minmax(0,1fr) 60px 46px; }
+  .bt { font-size: 10.5px; font-weight: 640; }
+  .bn { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bb { height: 5px; background: var(--line-soft); border-radius: 3px; overflow: hidden; }
+  .bb i { display: block; height: 100%; border-radius: 3px; background: var(--pos); }
+  .bb.alt i { background: var(--accent); }
+  .bv { font-size: 10px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .where { margin: 0; font-size: 11px; color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 12px; }
+  .empty[hidden] { display: none; }
+
+  .note { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .note summary { cursor: pointer; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; list-style: none; }
+  .note summary::-webkit-details-marker { display: none; }
+  .note summary::after { content: " +"; color: var(--faint); }
+  .note[open] summary::after { content: " −"; }
+  .note-body { font-size: 12px; color: var(--muted); line-height: 1.55; }
+  .note-body h2 { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 14px 0 5px; font-weight: 700; }
+  .note-body p { margin: 0 0 8px; }
+  .note-body b { color: var(--ink); font-weight: 600; }
+  .note-body ul { margin: 0; padding-left: 17px; }
+  .note-body li { margin-bottom: 4px; }
+  .note-body code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 11px; background: var(--raised); padding: 1px 4px; border-radius: 4px; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="hd">
+  <div class="wrap">
+    <div class="hd-bar">
+      <h1>ETF Momentum</h1>
+      <div class="asof">Close <b id="asof"></b></div>
+    </div>
+    <div class="rule">
+      <b>0.50 × 12−1</b> + <b>0.50 × 6−1</b> &nbsp;·&nbsp; each = return ÷ sigma
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <input id="q" class="search" type="search" placeholder="Find a ticker or theme"
+         autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Find a ticker or theme">
+
+  <div class="count">
+    <span id="shown"></span>
+    <span id="uni"></span>
+  </div>
+
+  <ol class="list" id="list"></ol>
+  <p class="empty" id="empty" hidden>Nothing matches.</p>
+
+  <details class="note">
+    <summary>Method, universe and sources</summary>
+    <div class="note-body">
+      <h2>The score</h2>
+      <p>Fixed, with nothing to configure. Daily log returns on split- and
+         dividend-adjusted closes. Each window stops <b>21 trading days short of today</b> — the
+         "−1" — because the most recent month tends to reverse rather than persist.</p>
+      <ul>
+        <li><b>12−1</b> = trading days t−252 to t−21, 231 returns</li>
+        <li><b>6−1</b> = trading days t−126 to t−21, 105 returns</li>
+      </ul>
+      <p>Each window's score is its annualized return divided by its own annualized sigma
+         (<code>stdev × √252</code>). The two are blended <b>50/50</b>. Both legs use the same
+         window conventions as the wider system.</p>
+      <p>The chart on each row shows the whole 12 months <em>including</em> the skipped final
+         month, so you can see what the score deliberately ignores. The shaded tail is that
+         skipped month.</p>
+
+      <h2>Universe</h2>
+      <p id="uni-note"></p>
+      <p>It is <b>hardwired</b>: nothing is added, substituted or screened out. Liquidity is
+         measured and shown but is <b>not a filter</b> — several names here trade under $1M a
+         day and would be hard to use in size. Check the figure before acting on a rank.</p>
+      <p id="inelig"></p>
+
+      <h2>Per-fund detail</h2>
+      <p>Tap any row. Holdings and their weights come from the fund's own <b>Form N-PORT filing
+         with the SEC</b> — public, free and authoritative, but quarterly and published around
+         60 days in arrears, so the reporting date is printed above every list. Positions are
+         filtered to operating companies; a fund's largest line is often a cash vehicle, and the
+         share genuinely held in shares is reported separately.</p>
+      <p>Sector and country weights, fee, fund size and issuer come from the price vendor's fund
+         profile. <b>Closest relative</b> is the one other fund in this universe that moves most
+         like it once the market's common movement is removed — worth checking before holding
+         two rows that look like different bets.</p>
+
+      <h2>Reading it honestly</h2>
+      <p>A score is an estimate from a sample of daily returns, so it carries real uncertainty —
+         roughly ±1.7 on the 12−1 leg and ±2.6 on the 6−1 leg at 90% confidence. Gaps of a tenth
+         or two are noise. Momentum rank is a starting point for work, not a recommendation, and
+         says nothing about what happens next.</p>
+    </div>
+  </details>
+</main>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function () {
+  var P = JSON.parse(document.getElementById('data').textContent);
+  var META = P.meta, ROWS = P.rows, DOM = META.combined.domain;
+  var $ = function (id) { return document.getElementById(id); };
+  var list = $('list'), emptyEl = $('empty');
+  var q = '';
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var p = iso.split('-'), m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return +p[2] + ' ' + m[+p[1] - 1] + ' ' + p[0];
+  }
+  function pct(x) { return (x * 100).toFixed(1) + '%'; }
+  function signed(x) { return (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%'; }
+  function money(v) {
+    if (v == null) return '—';
+    if (v >= 1e9) return '$' + (v / 1e9).toFixed(v >= 1e10 ? 0 : 1) + 'B';
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(v >= 1e8 ? 0 : 1) + 'M';
+    return '$' + Math.round(v / 1e3) + 'K';
+  }
+
+  // Price path as an inline SVG. The final stretch is the month the score skips, drawn
+  // faintly so it reads as context rather than signal.
+  function chart(r, w, h, cls) {
+    if (!r.sp || r.sp.length < 3) return '';
+    var pts = r.sp, lo = Math.min.apply(null, pts), hi = Math.max.apply(null, pts);
+    var span = (hi - lo) || 1, pad = 2;
+    var x = function (i) { return (i / (pts.length - 1)) * w; };
+    var y = function (v) { return pad + (1 - (v - lo) / span) * (h - pad * 2); };
+    var d = pts.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join(' ');
+    var cut = Math.max(0, Math.round(pts.length * (1 - (r.spSkip || 0))) - 1);
+    var up = pts[pts.length - 1] >= pts[0];
+    var col = up ? 'var(--pos)' : 'var(--neg)';
+    return '<svg class="' + cls + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<rect x="' + x(cut).toFixed(1) + '" y="0" width="' + (w - x(cut)).toFixed(1) + '" height="' + h + '" fill="var(--line-soft)" opacity=".7"/>' +
+      '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '</svg>';
+  }
+
+  function meter(v) {
+    var lo = DOM[0], hi = DOM[1], span = hi - lo || 1;
+    var zero = (0 - lo) / span * 100;
+    var at = (Math.max(lo, Math.min(hi, v)) - lo) / span * 100;
+    return { left: Math.min(zero, at), width: Math.max(Math.abs(at - zero), 0.6), zero: zero, up: v >= 0 };
+  }
+
+  function bars(items, cls, scale) {
+    return items.map(function (it) {
+      var w = Math.max(1, Math.min(100, it[1] / scale * 100));
+      return '<div class="bar-row two"><span class="bn">' + esc(it[0]) + '</span>' +
+        '<span class="bb ' + cls + '"><i style="width:' + w.toFixed(1) + '%"></i></span>' +
+        '<span class="bv mono">' + it[1].toFixed(1) + '%</span></div>';
+    }).join('');
+  }
+
+  function detailHTML(r) {
+    var out = '<div class="detail">' + chart(r, 300, 96, 'chart') + '<dl>';
+    out += '<dt>12−1 score</dt><dd class="mono">' + r.w12.sc.toFixed(2) +
+           ' <span class="hint">' + signed(r.w12.ar) + ' ÷ ' + pct(r.w12.av) + '</span></dd>';
+    out += '<dt>6−1 score</dt><dd class="mono">' + r.w6.sc.toFixed(2) +
+           ' <span class="hint">' + signed(r.w6.ar) + ' ÷ ' + pct(r.w6.av) + '</span></dd>';
+    out += '<dt>Net of T-bill <span class="hint">same blend</span></dt><dd class="mono">' + r.cbNet.toFixed(2) + '</dd>';
+    out += '<dt>12-month return</dt><dd class="mono">' + signed(r.w12.tr) + '</dd>';
+    if (r.er != null) out += '<dt>Annual fee</dt><dd class="mono">' + r.er.toFixed(2) + '%</dd>';
+    if (r.aum != null) out += '<dt>Fund size</dt><dd class="mono">' + money(r.aum) + '</dd>';
+    out += '<dt>Median daily volume</dt><dd class="mono">' + money(r.dv) + '</dd>';
+    if (r.iss) out += '<dt>Issuer</dt><dd>' + esc(r.iss) + '</dd>';
+    if (r.near) out += '<dt>Closest relative</dt><dd class="mono">' + esc(r.near[0]) +
+      ' <span class="hint">r ' + r.near[1].toFixed(2) + '</span></dd>';
+    out += '</dl>';
+
+    if (r.hTop && r.hTop.length) {
+      var top = r.hTop[0][2] || 1;
+      out += '<div class="blk"><div class="blk-h">Top company holdings' +
+        '<span>top ' + Math.min(10, r.hTop.length) + ' = ' + r.hConc.toFixed(0) + '% of the fund · ' +
+        r.hN + ' positions' + (r.hEq != null ? ' · ' + r.hEq.toFixed(0) + '% in shares' : '') +
+        (r.hAsOf ? ' · SEC filing ' + fmtDate(r.hAsOf) : '') + '</span></div>' +
+        r.hTop.map(function (h) {
+          return '<div class="bar-row"><span class="bt mono">' + esc(h[0] || '·') + '</span>' +
+            '<span class="bn">' + esc(h[1]) + '</span>' +
+            '<span class="bb"><i style="width:' + Math.max(1, Math.min(100, h[2] / top * 100)).toFixed(1) + '%"></i></span>' +
+            '<span class="bv mono">' + h[2].toFixed(2) + '%</span></div>';
+        }).join('') + '</div>';
+    }
+    if (r.sec) out += '<div class="blk"><div class="blk-h">Sector weights</div>' + bars(r.sec, 'alt', 100) + '</div>';
+    if (r.cty && r.cty.length) {
+      out += '<div class="blk"><div class="blk-h">Where</div><p class="where">' +
+        r.cty.map(function (c) { return esc(c[0]) + ' <span class="mono">' + c[1].toFixed(0) + '%</span>'; }).join(' · ') +
+        '</p></div>';
+    }
+    return out + '</div>';
+  }
+
+  function rowHTML(r, i) {
+    var m = meter(r.cb);
+    return '<li class="row" data-top="' + (i < 3 ? 1 : 0) + '" data-s="' + r.s + '">' +
+      '<button class="row-hd" type="button" aria-expanded="false">' +
+        '<span class="rk mono">' + r.crk + '</span>' +
+        '<span class="id">' +
+          '<span class="tkr-line"><span class="tkr mono">' + r.s + '</span>' +
+            '<span class="cat">' + esc(r.cat || '') + '</span></span>' +
+          '<span class="lab">' + esc(r.lab || r.n) + '</span></span>' +
+        chart(r, 62, 26, 'spark') +
+        '<span><span class="sc mono ' + (r.cb >= 0 ? 'up' : 'dn') + '">' + r.cb.toFixed(2) + '</span></span>' +
+      '</button>' +
+      '<div class="legs mono"><span>12−1 <b>' + r.w12.sc.toFixed(2) + '</b></span>' +
+        '<span>6−1 <b>' + r.w6.sc.toFixed(2) + '</b></span>' +
+        '<span>vol <b>' + pct(r.w12.av) + '</b></span>' +
+        (r.er != null ? '<span>fee <b>' + r.er.toFixed(2) + '%</b></span>' : '') + '</div>' +
+    '</li>';
+  }
+
+  function render() {
+    var needle = q.trim().toLowerCase();
+    var rows = ROWS.filter(function (r) {
+      if (!needle) return true;
+      return (r.s + ' ' + (r.lab || '') + ' ' + (r.cat || '') + ' ' + r.n).toLowerCase().indexOf(needle) >= 0;
+    });
+    list.innerHTML = rows.map(rowHTML).join('');
+    emptyEl.hidden = rows.length > 0;
+    $('shown').textContent = rows.length === ROWS.length
+      ? ROWS.length + ' ETFs ranked'
+      : rows.length + ' of ' + ROWS.length;
+  }
+
+  $('asof').textContent = fmtDate(META.asOf);
+  $('uni').textContent = 'universe fixed';
+  $('uni-note').textContent = META.ranked + ' of ' + META.universeSize +
+    ' ETFs on the curated list are ranked, across ' + META.categories + ' groups.';
+  $('inelig').innerHTML = META.excluded && META.excluded.length
+    ? 'Not ranked: ' + META.excluded.map(function (e) {
+        return '<b>' + esc(e[0]) + '</b> (' + esc(e[1]) + ')';
+      }).join(', ') + '.'
+    : '';
+
+  list.addEventListener('click', function (e) {
+    var hd = e.target.closest('.row-hd');
+    if (!hd) return;
+    var li = hd.parentNode, open = li.querySelector('.detail');
+    if (open) { open.remove(); hd.setAttribute('aria-expanded', 'false'); return; }
+    var r = ROWS.filter(function (x) { return x.s === li.dataset.s; })[0];
+    li.insertAdjacentHTML('beforeend', detailHTML(r));
+    hd.setAttribute('aria-expanded', 'true');
+  });
+
+  $('q').addEventListener('input', function (e) { q = e.target.value; render(); });
+  render();
+})();
+</script>

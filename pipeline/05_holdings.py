@@ -13,6 +13,8 @@ SEC asks for a descriptive User-Agent and fair access; this stays well inside th
 published 10 requests/second guidance.
 """
 import json
+import os
+import pathlib
 import re
 import time
 import urllib.request
@@ -63,8 +65,13 @@ print(f'  {len(series):,} fund tickers mapped')
 
 # Only equity funds: a broad bond fund can carry thousands of line items, and the
 # question this answers -- which companies drove the move -- is a stock question.
-targets = [r['symbol'] for r in C.load('liquid.json')
-           if C.profile(r['symbol']).get('stk')]
+# A pinned universe overrides that: the list was curated deliberately, so every name
+# on it gets looked up regardless of how the vendor classifies it.
+if C.curated_universe():
+    targets = [r['symbol'] for r in C.load('liquid.json')]
+else:
+    targets = [r['symbol'] for r in C.load('liquid.json')
+               if C.profile(r['symbol']).get('stk')]
 print(f'targets: {len(targets):,} stock funds')
 
 lock, done, stats = Lock(), [0], {'ok': 0, 'no_series': 0, 'no_filing': 0, 'error': 0}
@@ -154,6 +161,20 @@ print(f'done {done[0]:,}  {stats}')
 # iShares and Vanguard give only an ISIN. Since the two overlap across funds, the
 # filings that carry both are enough to name the ones that do not -- no extra requests.
 isin_to_ticker = {}
+# A small universe harvests few pairs of its own, so an existing holdings directory
+# from a wider run can seed the map. Purely a naming aid; no figures come from it.
+seed = os.environ.get('ETF_ISIN_SEED')
+if seed:
+    for f in pathlib.Path(seed).glob('*.json'):
+        try:
+            h = json.loads(f.read_text())
+        except ValueError:
+            continue
+        for p in h.get('top', []):
+            if p.get('t') and p.get('i'):
+                isin_to_ticker.setdefault(p['i'], p['t'])
+    print(f'seeded {len(isin_to_ticker):,} ISIN -> ticker pairs from {seed}')
+
 files = sorted(out.glob('*.json'))
 for f in files:
     try:

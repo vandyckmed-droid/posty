@@ -34,9 +34,13 @@ def window(sym):
     return bars[-(LONGEST + 1):len(bars) - C.SKIP]
 
 
-cal = [b['date'] for b in window('SPY')][1:]
+# Trading calendar from whichever fund in this universe has the fullest history.
+# Hardcoding SPY breaks the moment the universe is pinned to a curated list.
+ref_sym = max((r['s'] for r in rows), key=lambda s: len(window(s)), default=None)
+cal = [b['date'] for b in window(ref_sym)][1:]
 pos = {d: i for i, d in enumerate(cal)}
 n = len(cal)
+print(f'calendar reference: {ref_sym} ({n} returns)')
 assert n == WIN_OBS['12'], (n, WIN_OBS['12'])
 
 R, vrow = [], []
@@ -122,6 +126,17 @@ for key, obs in WIN_OBS.items():
           f'({len(json.dumps(payload["edges"][key]))/1024:.0f} KB)   '
           f'market-adj edges >={RESID_CUT}: {nres:,} '
           f'({len(json.dumps(payload["redges"][key]))/1024:.0f} KB)')
+
+    # Nearest relative on the long window: the one other fund in this universe that
+    # moves most like it once the market is removed. Surfaces near-duplicate exposures
+    # without needing a control on the page.
+    if key == '12':
+        np.fill_diagonal(rcorr, -2.0)
+        best = rcorr.argmax(axis=1)
+        for i, j in enumerate(best):
+            r = rows[vrow[i]]
+            r['near'] = [rows[vrow[int(j)]]['s'], round(float(rcorr[i, int(j)]), 3)]
+        np.fill_diagonal(rcorr, 1.0)
 
 payload['edgeCut'] = EDGE_CUT
 payload['residCut'] = RESID_CUT

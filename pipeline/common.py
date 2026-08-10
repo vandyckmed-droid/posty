@@ -37,6 +37,28 @@ CASH_VOL = 0.03                # below this annualized vol, a fund is a cash pro
 EDGE_CUT = 0.90                # lowest raw correlation the grouping UI can act on
 RESID_CUT = 0.85               # same, on market-adjusted (PC1-removed) correlation
 
+# A curated run pins the universe to an explicit list and skips discovery and the
+# liquidity screen entirely: the list IS the universe. Liquidity is still measured
+# and displayed, it just stops being a gate.
+UNIVERSE_FILE = os.environ.get('ETF_UNIVERSE')
+COMBINED_WEIGHTS = {'12': 0.5, '6': 0.5}   # hardwired blend of the two windows
+
+
+def curated_universe():
+    """[(ticker, category, label)] from ETF_UNIVERSE, or None for a discovery run."""
+    if not UNIVERSE_FILE:
+        return None
+    rows = []
+    with open(UNIVERSE_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = [p.strip() for p in line.split('|')]
+            rows.append((parts[0], parts[1] if len(parts) > 1 else '',
+                         parts[2] if len(parts) > 2 else ''))
+    return rows
+
 DATA.mkdir(parents=True, exist_ok=True)
 
 
