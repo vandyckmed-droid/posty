@@ -1,0 +1,70 @@
+/* The app is a phone column. On a desktop viewport it stays phone-width and
+   centres, with hairlines marking the frame -- deliberately a phone app shown
+   on a big screen, not a layout that reflows into a dashboard. */
+.app{
+  max-width:var(--app-w); margin:0 auto; min-height:100vh; min-height:100dvh;
+  padding-bottom:calc(var(--tabbar-h) + var(--safe-b) + 8px);
+}
+@media(min-width:520px){
+  .app{border-inline:1px solid var(--line-soft)}
+}
+
+.topbar{
+  position:sticky; top:0; z-index:40;
+  height:calc(var(--topbar-h) + var(--safe-t)); padding:var(--safe-t) var(--gut) 0;
+  display:flex; align-items:center; gap:10px;
+  background:rgba(7,9,10,.86); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:8px; flex:1; min-width:0}
+.brand .dot{
+  width:7px; height:7px; border-radius:50%; background:var(--neon);
+  box-shadow:0 0 10px var(--neon); flex:none; animation:pulse 3.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.42}}
+.brand h1{font-size:14px; font-weight:800; letter-spacing:-.01em}
+.brand h1 em{font-style:normal; color:var(--neon)}
+.ghost{
+  display:flex; align-items:center; gap:5px; min-height:36px; padding:0 10px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.06em; color:var(--ink-3);
+  border-radius:var(--r-sm); border:1px solid var(--line); flex:none;
+}
+.ghost svg{width:11px; height:11px}
+.ghost:active{background:var(--panel-2)}
+
+.screen{padding:0 var(--gut)}
+.screen[hidden]{display:none}
+
+/* thumb-reachable primary navigation */
+.tabbar{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:0; z-index:45;
+  width:100%; max-width:var(--app-w);
+  height:calc(var(--tabbar-h) + var(--safe-b)); padding-bottom:var(--safe-b);
+  display:grid; grid-template-columns:repeat(3,1fr);
+  background:rgba(10,13,14,.92); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line);
+}
+.tab{
+  position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; color:var(--ink-3); font-size:10px; letter-spacing:.02em; transition:color .15s;
+}
+.tab svg{width:19px; height:19px}
+.tab[aria-current="page"]{color:var(--neon)}
+.tab[aria-current="page"]::before{
+  content:""; position:absolute; top:0; width:26px; height:2px; border-radius:0 0 2px 2px;
+  background:var(--neon); box-shadow:0 0 10px var(--neon-glow);
+}
+.tab .badge[hidden]{display:none}
+.tab .badge{
+  position:absolute; top:6px; margin-left:34px; min-width:16px; height:16px; padding:0 4px;
+  border-radius:8px; background:var(--volt); color:#04161C; font-family:var(--mono);
+  font-size:9.5px; font-style:normal; font-weight:700; display:grid; place-items:center;
+}
+
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--r)}
+.section-h{
+  display:flex; align-items:baseline; gap:8px; padding:18px 2px 8px;
+}
+.section-h h2{font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-2)}
+.section-h .aside{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--ink-3)}
+.empty{padding:34px 18px; text-align:center; color:var(--ink-3); font-size:13px; line-height:1.6}

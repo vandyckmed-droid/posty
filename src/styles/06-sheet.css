@@ -1,0 +1,87 @@
+/* Every secondary surface is a bottom sheet: it arrives under the thumb,
+   dismisses by swipe, and never asks for a reach to the top of the screen. */
+.scrim{position:fixed; inset:0; z-index:60; background:rgba(3,5,6,.7);
+  backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:fade .18s ease}
+.scrim[hidden]{display:none}
+@keyframes fade{from{opacity:0}}
+
+.sheet{
+  position:fixed; z-index:61; left:50%; transform:translateX(-50%); bottom:0;
+  width:100%; max-width:var(--app-w); max-height:92dvh;
+  display:flex; flex-direction:column; overflow:hidden;
+  background:var(--panel); border:1px solid var(--line); border-bottom:0;
+  border-radius:18px 18px 0 0; box-shadow:0 -18px 60px rgba(0,0,0,.7);
+  animation:rise .26s cubic-bezier(.22,.9,.28,1);
+  touch-action:none;
+}
+.sheet[hidden]{display:none}
+.sheet.tall{height:92dvh}
+@keyframes rise{from{transform:translate(-50%,100%)}}
+.grabber{
+  flex:none; height:22px; width:100%; display:grid; place-items:center; padding-top:8px;
+}
+.grabber::before{content:""; width:38px; height:4px; border-radius:2px; background:var(--line); display:block}
+.grabber:active::before{background:var(--ink-3)}
+.sheet-inner{overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  padding:0 var(--gut) calc(16px + var(--safe-b)); touch-action:pan-y}
+
+.sheet-h{display:flex; align-items:flex-start; gap:12px; padding:4px 0 14px}
+.sheet-h .who{flex:1; min-width:0}
+.sheet-h h2{font-family:var(--mono); font-size:22px; font-weight:700; letter-spacing:-.01em}
+.sheet-h .sub{margin-top:3px; font-size:12.5px; color:var(--ink-2)}
+.sheet-h .sub .sec{display:inline-flex; align-items:center; gap:5px}
+.sheet-h .sub .sec i{width:5px; height:5px; border-radius:50%; background:var(--sc); display:inline-block}
+.iconbtn{width:var(--tap); height:var(--tap); display:grid; place-items:center; flex:none; border-radius:50%; color:var(--ink-2)}
+.iconbtn i{width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--panel-2); display:grid; place-items:center}
+.iconbtn svg{width:14px; height:14px}
+.iconbtn[aria-pressed="true"] i{background:var(--neon); border-color:var(--neon); color:#04120C}
+
+.quad{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line);
+  border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
+.quad div{background:var(--panel); padding:9px 8px 10px; min-width:0}
+.quad .lbl{margin-bottom:4px; font-size:9px; letter-spacing:.08em}
+.quad .v{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:14px; font-weight:700; letter-spacing:-.02em}
+
+.readout{display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline; min-height:36px; margin:16px 0 6px}
+.ro{display:flex; align-items:baseline; gap:6px}
+.ro i{width:7px; height:7px; border-radius:2px; background:var(--c); align-self:center; flex:none}
+.ro .t{font-family:var(--mono); font-size:12px; font-weight:700}
+.ro .r{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:14px; font-weight:700}
+.ro .x{width:26px; height:26px; display:grid; place-items:center; color:var(--ink-3); border-radius:50%}
+.ro .x svg{width:10px; height:10px}
+.ro-date{margin-left:auto; font-family:var(--mono); font-size:10.5px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3); white-space:nowrap}
+.chartwrap{position:relative; height:min(38dvh,270px)}
+#chart{width:100%; height:100%; display:block; touch-action:none}
+.chart-foot{display:flex; align-items:center; gap:8px; margin-top:12px}
+.chart-foot .seg{flex:1}
+.chart-foot .seg button{flex:1; height:38px; font-size:11px}
+.chart-foot .pill{height:38px}
+.note{margin:14px 0 4px; color:var(--ink-3); font-size:11.5px; line-height:1.6}
+
+/* option lists inside sheets (sort, sector, compare) */
+.optlist{display:flex; flex-direction:column; padding-bottom:4px}
+.opt{display:flex; align-items:center; gap:11px; min-height:var(--tap); padding:10px 2px;
+  border-bottom:1px solid var(--line-soft); text-align:left; width:100%}
+.opt:last-child{border-bottom:0}
+.opt .dotc{width:8px; height:8px; border-radius:50%; background:var(--sc); flex:none}
+.opt .nm{flex:1; min-width:0; font-size:14.5px}
+.opt .cnt{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.opt .chk{width:20px; height:20px; border-radius:6px; border:1px solid var(--line); display:grid; place-items:center; flex:none; color:transparent}
+.opt .chk svg{width:11px; height:11px}
+.opt[aria-selected="true"] .chk,.opt[aria-checked="true"] .chk{background:var(--neon); border-color:var(--neon); color:#04120C}
+.opt .tk{font-family:var(--mono); font-size:13.5px; font-weight:700; flex:none}
+.sheet-title{font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-2); padding:2px 0 10px}
+.sheet-actions{display:flex; gap:8px; padding:12px 0 2px; position:sticky; bottom:0; background:var(--panel)}
+.btn{flex:1; height:46px; border-radius:var(--r-sm); border:1px solid var(--line);
+  background:var(--panel-2); font-size:14px; font-weight:600; color:var(--ink)}
+.btn.primary{background:var(--neon); border-color:var(--neon); color:#04120C}
+
+.prose{color:var(--ink-2); font-size:13.5px; line-height:1.65}
+.prose h3{font-family:var(--mono); font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); margin:20px 0 6px; font-weight:500}
+.prose code{font-family:var(--mono); font-size:12px; color:var(--neon);
+  background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:1px 4px}
+.prose .kv{display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line-soft)}
+.prose .kv b{font-family:var(--mono); font-weight:600; color:var(--ink)}

@@ -90,6 +90,26 @@ bars for each, then re-fetches the liquid head as two years of dividend-adjusted
 closes for the returns, volatility and detail charts. A full run takes about
 thirteen minutes.
 
+## Interface
+
+Phone-first. The app is a single column sized for a handset and centred on wider
+screens — deliberately a phone app rather than a layout that reflows into a
+dashboard.
+
+Three tabs sit in a thumb-reachable bottom bar:
+
+- **Ranks** — a scannable card list, one metric per row (12-1 by default, or
+  whatever the list is sorted by, so the active sort is always legible). Search
+  scrolls away; the basis / sort / sector rail stays pinned.
+- **Watchlist** — portfolio summary, holdings with inverse-volatility weights,
+  and sector exposure.
+- **Method** — formulas, data provenance and freshness.
+
+Sort and sector choosers, ticker detail and the compare picker are all bottom
+sheets: they arrive under the thumb and dismiss with a downward swipe. Every
+control clears a 36px touch target, and safe-area insets are respected top and
+bottom.
+
 ## Detail and comparison view
 
 Tapping a ticker opens a detail sheet — a normalized cumulative total-return
@@ -114,13 +134,34 @@ persists to `localStorage` in the viewer's browser.
 
 ## Layout
 
-| Path                        | Purpose                                          |
-| --------------------------- | ------------------------------------------------ |
-| `scripts/build_data.py`     | FMP fetch, screening, momentum and volatility     |
-| `scripts/build_artifact.py` | Inlines the dataset into the template             |
-| `artifact/template.html`    | Interface source, with a `__DATA__` placeholder   |
-| `artifact/index.html`       | Generated, publishable artifact                   |
+The artifact must ship as one self-contained file, but the source is modular.
+`build_artifact.py` concatenates `src/styles/*.css` and `src/app/*.js` in
+filename order (the numeric prefixes are the dependency order), wraps the app in
+a single IIFE, inlines the dataset and writes `artifact/index.html`. Editing a
+view means editing one small file, not a 1,400-line template.
+
+| Path                        | Purpose                                             |
+| --------------------------- | --------------------------------------------------- |
+| `scripts/build_data.py`     | FMP fetch, screening, momentum and volatility        |
+| `scripts/build_artifact.py` | Bundles `src/` + dataset into the artifact           |
+| `src/shell.html`            | Page shell and tab bar                               |
+| `src/styles/`               | Tokens, base, shell, ranks, watchlist, sheet         |
+| `src/app/01-format.js`      | Number and date formatting                           |
+| `src/app/02-calc.js`        | Weights, sector exposure, rebasing, axis maths       |
+| `src/app/03-store.js`       | Dataset access, UI state, persistence, notification  |
+| `src/app/04-chart.js`       | Canvas chart, crosshair geometry, sparklines         |
+| `src/app/05-sheet.js`       | Bottom-sheet host: swipe, focus, scroll lock         |
+| `src/app/06-08-view-*.js`   | Ranks, Watchlist, Method screens                     |
+| `src/app/09-view-detail.js` | Ticker detail and compare                            |
+| `src/app/10-pickers.js`     | Sort and sector choosers                             |
+| `src/app/11-main.js`        | Tab navigation and one delegated click handler       |
+| `artifact/index.html`       | Generated, publishable artifact                      |
 | `data/momentum.json`        | Generated dataset (both bases' top 100, plus metadata)|
+
+The layers are separable on purpose: calculations are pure and DOM-free, the
+store is the only thing that touches `DATA` or `localStorage`, and views render
+from the store without reaching past it. Changing the ranking maths, adding a
+card, or adding a tab each touch one layer.
 
 Research and educational use only — mechanical outputs of the formulas above,
 not investment advice.

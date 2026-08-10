@@ -1,0 +1,46 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#07090A">
+<title>Momentum 100 — Cross-Sectional Equity Momentum</title>
+{{STYLES}}
+
+<div class="app">
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <span class="dot" aria-hidden="true"></span>
+      <h1>MOMENTUM<em>100</em></h1>
+    </div>
+    <button class="ghost" id="stamp" aria-label="Data freshness and method">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.2"/></svg>
+      <span id="stampdate">—</span>
+    </button>
+  </header>
+
+  <main id="screens">
+    <section class="screen" id="screen-ranks" aria-label="Ranks"></section>
+    <section class="screen" id="screen-watch" hidden aria-label="Watchlist"></section>
+    <section class="screen" id="screen-about" hidden aria-label="Method"></section>
+  </main>
+
+  <nav class="tabbar" id="tabbar" aria-label="Sections">
+    <button class="tab" data-tab="ranks" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V4M16 18v-6M22 18H2"/></svg>
+      <span>Ranks</span>
+    </button>
+    <button class="tab" data-tab="watch">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7L9.5 17.5 4 12"/></svg>
+      <span>Watchlist</span>
+      <i class="badge" id="tabbadge" hidden></i>
+    </button>
+    <button class="tab" data-tab="about">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.2"/></svg>
+      <span>Method</span>
+    </button>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <button class="grabber" id="grabber" aria-label="Close"></button>
+  <div class="sheet-inner" id="sheet-inner"></div>
+</section>
+{{SCRIPTS}}

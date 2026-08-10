@@ -1,0 +1,29 @@
+/* Design tokens. Palette is carried over unchanged from the desktop build --
+   the visual identity is the one thing this redesign does not touch. The scale
+   tokens below are the phone-tuned part. */
+:root{
+  --void:#07090A; --panel:#0E1113; --panel-2:#14181B; --raise:#191E21;
+  --line:#1C2225; --line-soft:#141A1C;
+  --ink:#ECF2EF; --ink-2:#9AA8A5; --ink-3:#66756F;
+  --neon:#00F5A0; --neon-dim:#0B9C69; --neon-glow:rgba(0,245,160,.16);
+  --volt:#00D2FF; --volt-dim:#0A6E86;
+  --down:#FF5470; --down-dim:#8C2A3C;
+
+  --sec-tech:#35E0C2; --sec-comm:#5AA9FF; --sec-cycl:#C08BFF; --sec-def:#FFB86B;
+  --sec-heal:#6EE7FF; --sec-fin:#A8DE4E;  --sec-ind:#FF8FA3; --sec-ener:#FFD166;
+  --sec-mat:#B7A6FF;  --sec-util:#7FD1AE; --sec-re:#FF9F7A;  --sec-none:#6B7A78;
+
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+
+  /* phone scale */
+  --gut:14px;                        /* screen gutter */
+  --r:12px;                          /* card radius -- softer than the desktop 4px */
+  --r-sm:8px;
+  --tap:44px;                        /* minimum touch target */
+  --topbar-h:52px;
+  --tabbar-h:58px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+  --app-w:480px;                     /* the app is a phone column, centred on desktop */
+}
