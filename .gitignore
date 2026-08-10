@@ -1,0 +1,14 @@
+# Downloaded and derived data - fully reproducible from the pipeline
+data/
+*.build.html
+wrapped.html
+shot-*.png
+
+# Node
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/

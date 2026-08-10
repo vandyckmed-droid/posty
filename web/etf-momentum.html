@@ -1,0 +1,919 @@
+<title>ETF Momentum Screen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --ground:   #EFF0F4;
+    --surface:  #FFFFFF;
+    --raised:   #F7F8FA;
+    --line:     #DDDFE7;
+    --line-soft:#E9EAF0;
+    --ink:      #141821;
+    --muted:    #666E80;
+    --faint:    #8B93A4;
+    --accent:   #3D4DBF;
+    --accent-sf:#E7E9FA;
+    --pos:      #1A7A5E;
+    --pos-sf:   #D6EDE4;
+    --neg:      #A8452C;
+    --neg-sf:   #F4DFD8;
+    --shadow:   0 1px 2px rgba(20,24,33,.06), 0 1px 1px rgba(20,24,33,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0E1117;
+      --surface:  #171B23;
+      --raised:   #1E232D;
+      --line:     #2A303C;
+      --line-soft:#232833;
+      --ink:      #E5E8EF;
+      --muted:    #8B93A6;
+      --faint:    #6C7488;
+      --accent:   #8B97F2;
+      --accent-sf:#242A47;
+      --pos:      #41BC91;
+      --pos-sf:   #16342A;
+      --neg:      #E27C60;
+      --neg-sf:   #3A2019;
+      --shadow:   0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #0E1117;
+    --surface:  #171B23;
+    --raised:   #1E232D;
+    --line:     #2A303C;
+    --line-soft:#232833;
+    --ink:      #E5E8EF;
+    --muted:    #8B93A6;
+    --faint:    #6C7488;
+    --accent:   #8B97F2;
+    --accent-sf:#242A47;
+    --pos:      #41BC91;
+    --pos-sf:   #16342A;
+    --neg:      #E27C60;
+    --neg-sf:   #3A2019;
+    --shadow:   0 1px 2px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-text-size-adjust: 100%;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 12px; }
+
+  /* ---------- header ---------- */
+  .hd {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--ground);
+    border-bottom: 1px solid var(--line);
+    padding-top: env(safe-area-inset-top);
+  }
+  .hd-bar {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px; padding: 10px 0 8px;
+  }
+  h1 {
+    margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+  .asof {
+    font-size: 11px; color: var(--muted); white-space: nowrap;
+    letter-spacing: .04em; text-transform: uppercase;
+  }
+  .asof b { color: var(--ink); font-weight: 600; letter-spacing: 0; }
+
+  .formula {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--muted); padding-bottom: 9px;
+  }
+  .frac { display: inline-flex; flex-direction: column; line-height: 1.15; text-align: center; }
+  .frac > span:first-child { border-bottom: 1px solid var(--line); padding: 0 4px 1px; }
+  .frac > span:last-child { padding: 1px 4px 0; }
+  .frac em { font-style: normal; color: var(--ink); font-weight: 600; }
+
+  /* ---------- controls ---------- */
+  .controls { display: flex; flex-direction: column; gap: 8px; padding: 10px 0 11px; }
+  .search {
+    width: 100%; font: inherit; font-size: 16px;
+    padding: 9px 12px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .search::placeholder { color: var(--faint); }
+  .search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+  .rail {
+    display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+    margin: 0 -12px; padding: 1px 12px 2px;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail-lbl {
+    flex: none; align-self: center; font-size: 10px; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--faint); padding-right: 2px;
+  }
+  .chip {
+    flex: none; font: inherit; font-size: 12.5px; font-weight: 500;
+    padding: 7px 11px; min-height: 34px;
+    border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--muted);
+    cursor: pointer; white-space: nowrap;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--accent-sf); border-color: var(--accent); color: var(--accent); font-weight: 600;
+  }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chip.win { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+  .rail-note {
+    flex: none; align-self: center; padding-left: 4px; white-space: nowrap;
+    font-size: 10.5px; color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+
+  /* ---------- readout ---------- */
+  .readout {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    padding: 2px 0 10px;
+  }
+  .ro {
+    background: var(--surface); border: 1px solid var(--line-soft);
+    border-radius: 9px; padding: 7px 9px 8px; min-width: 0;
+  }
+  .ro-v {
+    display: block; font-size: 17px; font-weight: 640; letter-spacing: -.02em;
+    line-height: 1.15;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .ro-v small { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .ro-l {
+    display: block; margin-top: 2px;
+    font-size: 8.5px; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--faint); line-height: 1.35;
+  }
+  .ro.hl .ro-v { color: var(--accent); }
+
+  .count {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    font-size: 11.5px; color: var(--muted); padding: 0 0 8px;
+  }
+  .count b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- similar-fund groups ---------- */
+  .grp-toggle {
+    display: flex; align-items: center; gap: 6px; width: 100%;
+    font: inherit; font-size: 11.5px; font-weight: 550; text-align: left;
+    padding: 7px 11px 9px; min-height: 36px;
+    background: none; border: 0; border-top: 1px dashed var(--line);
+    color: var(--accent); cursor: pointer;
+  }
+  .grp-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .grp-toggle .caret { font-size: 9px; opacity: .7; }
+  .grp-toggle .rr {
+    margin-left: auto; color: var(--faint); font-weight: 500;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  .grp { border-top: 1px solid var(--line-soft); background: var(--raised); }
+  .mem {
+    display: grid; grid-template-columns: minmax(0,1fr) auto;
+    gap: 1px 10px; align-items: baseline;
+    padding: 8px 11px; border-bottom: 1px solid var(--line-soft);
+  }
+  .mem:last-child { border-bottom: 0; }
+  .mem-t {
+    font-size: 13px; font-weight: 620; letter-spacing: .01em;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .mem-n {
+    grid-column: 1; font-size: 10.5px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mem-s { grid-row: 1; grid-column: 2; font-size: 13px; font-weight: 600; }
+  .mem-s.up { color: var(--pos); }
+  .mem-s.dn { color: var(--neg); }
+  .mem-r { grid-row: 2; grid-column: 2; font-size: 10px; color: var(--faint); }
+
+  /* ---------- list ---------- */
+  .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+
+  .row {
+    background: var(--surface); border: 1px solid var(--line-soft);
+    border-radius: 11px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .row-hd {
+    display: grid; grid-template-columns: 30px minmax(0,1fr) auto;
+    align-items: center; gap: 10px;
+    width: 100%; min-height: 56px; padding: 9px 11px 8px;
+    font: inherit; text-align: left; color: inherit;
+    background: none; border: 0; cursor: pointer;
+  }
+  .row-hd:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .rank {
+    font-size: 12px; font-weight: 600; color: var(--faint);
+    text-align: right; letter-spacing: -.02em;
+  }
+  .row[data-top="1"] .rank { color: var(--accent); }
+
+  .id { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .tkr-line { display: flex; align-items: center; gap: 6px; }
+  .tkr { font-size: 15px; font-weight: 650; letter-spacing: .01em; }
+  .tag {
+    font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    padding: 1.5px 4px; border-radius: 3px;
+    background: var(--raised); color: var(--faint); border: 1px solid var(--line-soft);
+  }
+  .tag.lev { background: var(--accent-sf); color: var(--accent); border-color: transparent; }
+  .nm {
+    font-size: 11.5px; color: var(--muted); line-height: 1.3;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .sc-cell { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
+  .sc { font-size: 21px; font-weight: 620; letter-spacing: -.02em; line-height: 1.1; }
+  .sc.up { color: var(--pos); }
+  .sc.dn { color: var(--neg); }
+  .sc-lbl { font-size: 8.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }
+
+  /* diverging meter */
+  .meter { position: relative; height: 3px; background: var(--line-soft); margin: 0 11px 9px; border-radius: 2px; }
+  .meter i { position: absolute; top: 0; height: 100%; border-radius: 2px; display: block; }
+  .meter i.up { background: var(--pos); }
+  .meter i.dn { background: var(--neg); }
+  .meter u {
+    position: absolute; top: -2px; height: 7px; width: 1px;
+    background: var(--faint); opacity: .55;
+  }
+
+  .stats { display: flex; gap: 5px; padding: 0 11px 10px; }
+  .stat {
+    flex: 1; min-width: 0; background: var(--raised);
+    border-radius: 7px; padding: 5px 7px 6px;
+  }
+  .stat dt {
+    font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--faint); margin: 0 0 1px;
+  }
+  .stat dd { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
+  .stat dd.up { color: var(--pos); }
+  .stat dd.dn { color: var(--neg); }
+
+  .detail { border-top: 1px solid var(--line-soft); padding: 9px 11px 11px; background: var(--raised); }
+  .detail dl {
+    margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
+    font-size: 12px;
+  }
+  .detail dt { color: var(--muted); }
+  .detail .hint { color: var(--faint); font-size: 10.5px; }
+  .detail .drift { font-size: 10.5px; color: var(--faint); }
+  .detail .drift.up { color: var(--pos); }
+  .detail .drift.dn { color: var(--neg); }
+  .detail dd { margin: 0; text-align: right; font-weight: 550; }
+  .detail .note { margin: 8px 0 0; font-size: 11px; color: var(--faint); line-height: 1.4; }
+
+  .more {
+    display: block; width: 100%; margin: 12px 0 0; font: inherit; font-size: 13.5px; font-weight: 600;
+    padding: 12px; border-radius: 10px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); color: var(--accent);
+  }
+  .more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 34px 12px; }
+
+  /* ---------- method ---------- */
+  .method { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .method summary {
+    cursor: pointer; font-size: 11px; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; list-style: none;
+  }
+  .method summary::-webkit-details-marker { display: none; }
+  .method summary::after { content: " +"; color: var(--faint); }
+  .method[open] summary::after { content: " −"; }
+  .method-body { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+  .method-body h2 {
+    font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--faint); margin: 16px 0 5px; font-weight: 700;
+  }
+  .method-body p { margin: 0 0 8px; }
+  .method-body ol, .method-body ul { margin: 0; padding-left: 18px; }
+  .method-body li { margin-bottom: 5px; }
+  .method-body b, .method-body strong { color: var(--ink); font-weight: 600; }
+  .method-body code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 11.5px; background: var(--raised); padding: 1px 4px; border-radius: 4px;
+  }
+  .caveat {
+    margin-top: 14px; padding: 10px 11px; border-radius: 9px;
+    background: var(--raised); border: 1px solid var(--line-soft);
+    font-size: 11.5px; color: var(--muted); line-height: 1.5;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+  @media (min-width: 600px) {
+    body { font-size: 15.5px; }
+    .wrap { padding: 0 20px; }
+    .stats { gap: 7px; }
+  }
+</style>
+
+<header class="hd">
+  <div class="wrap">
+    <div class="hd-bar">
+      <h1>ETF <span id="h-win">6−1</span> Momentum</h1>
+      <div class="asof">Close <b id="asof"></b></div>
+    </div>
+    <div class="formula">
+      <span>Score</span><span>=</span>
+      <span class="frac mono">
+        <span><em><span class="wl">6−1</span> return</em> − T-bill</span>
+        <span><em><span class="wl">6−1</span> vol</em></span>
+      </span>
+      <span id="uni"></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="controls">
+    <input id="q" class="search" type="search" placeholder="Search ticker or fund name"
+           autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Search ticker or fund name">
+
+    <div class="rail" role="group" aria-label="Formation window">
+      <span class="rail-lbl">Window</span>
+      <button class="chip win" data-win="6" aria-pressed="true">6−1</button>
+      <button class="chip win" data-win="12" aria-pressed="false">12−1</button>
+      <span class="rail-note" id="winrange"></span>
+    </div>
+
+    <div class="rail" role="group" aria-label="Minimum median daily dollar volume">
+      <span class="rail-lbl">Liquidity</span>
+      <button class="chip" data-liq="5000000" aria-pressed="true">$5M+</button>
+      <button class="chip" data-liq="25000000" aria-pressed="false">$25M+</button>
+      <button class="chip" data-liq="100000000" aria-pressed="false">$100M+</button>
+      <button class="chip" data-liq="500000000" aria-pressed="false">$500M+</button>
+    </div>
+
+    <div class="rail" role="group" aria-label="Filters">
+      <span class="rail-lbl">Hide</span>
+      <button class="chip" id="f-cash" aria-pressed="false">Cash-like</button>
+      <button class="chip" id="f-lev" aria-pressed="false">Leveraged</button>
+      <button class="chip" id="f-inv" aria-pressed="false">Inverse</button>
+    </div>
+
+    <div class="rail" role="group" aria-label="Group near-identical funds">
+      <span class="rail-lbl">Group</span>
+      <button class="chip" data-grp="0.95" aria-pressed="true">r ≥ 0.95</button>
+      <button class="chip" data-grp="0.9" aria-pressed="false">r ≥ 0.90</button>
+      <button class="chip" data-grp="0" aria-pressed="false">Off</button>
+    </div>
+
+    <div class="rail" role="group" aria-label="Sort order">
+      <span class="rail-lbl">Sort</span>
+      <button class="chip" data-sort="xs" aria-pressed="true">Score</button>
+      <button class="chip" data-sort="sc" aria-pressed="false">Raw score</button>
+      <button class="chip" data-sort="ar" aria-pressed="false">Return</button>
+      <button class="chip" data-sort="av" aria-pressed="false">Low vol</button>
+      <button class="chip" data-sort="dv" aria-pressed="false">Liquidity</button>
+    </div>
+  </div>
+
+  <div class="readout">
+    <div class="ro">
+      <span class="ro-v" id="ro-shown">0</span>
+      <span class="ro-l">of <span id="total">0</span> ETFs pass</span>
+    </div>
+    <div class="ro">
+      <span class="ro-v" id="ro-grp">0</span>
+      <span class="ro-l">folded into<br>a near-twin</span>
+    </div>
+    <div class="ro hl">
+      <span class="ro-v" id="ro-bets">–</span>
+      <span class="ro-l">independent bets<br>in the top 10</span>
+    </div>
+  </div>
+
+  <div class="count">
+    <span id="grpline"></span>
+    <span id="medline"></span>
+  </div>
+
+  <ol class="list" id="list"></ol>
+  <p class="empty" id="empty" hidden>No ETFs match these filters.</p>
+  <button class="more" id="more" hidden>Show more</button>
+
+  <details class="method">
+    <summary>Method &amp; caveats</summary>
+    <div class="method-body">
+      <h2>Universe</h2>
+      <p>Starts from every US-listed ETF on the vendor's master list, then applies one
+         baseline liquidity screen so that everything ranked is actually tradeable:</p>
+      <ul>
+        <li><b>Median daily dollar volume ≥ $5M</b> over the last 63 sessions
+            (median, not mean, so a single block trade can't lift a thin fund through the gate)</li>
+        <li><b>Last close ≥ $5</b></li>
+        <li><b>≥ 273 sessions of price history</b>, so the longest formation window exists</li>
+      </ul>
+      <p>Delisted tickers that still quote a stale last price are dropped automatically —
+         they return no price history.</p>
+
+      <h2>Score</h2>
+      <p>Daily log returns <code>r<sub>t</sub> = ln(P<sub>t</sub> / P<sub>t−1</sub>)</code> on
+         split- and dividend-adjusted closes, measured over a <b>formation window</b> that always
+         stops 21 sessions short of today. That gap is the "−1", and it is there because one-month
+         returns tend to reverse rather than persist.</p>
+      <ul>
+        <li><b>12−1</b> — trading days <code>t−252</code> to <code>t−21</code>, 231 daily returns.
+            The classic academic window; slower to turn, less prone to chasing a single hot quarter.</li>
+        <li><b>6−1</b> — trading days <code>t−126</code> to <code>t−21</code>, 105 daily returns.
+            Reacts sooner to a trend that has only recently established itself, at the cost of a
+            noisier estimate — half the observations means a wider error bar on every score.</li>
+      </ul>
+      <p>Both rank the same 1,058 funds, so nothing appears in one list and vanishes from the other.
+         That does exclude 32 liquid funds young enough to have 6−1 history but not 12−1 — mostly
+         single-stock geared products — in exchange for two rankings that are directly comparable.
+         Every row's detail shows its rank on <em>both</em> windows with the gap between them:
+         a fund at #6 on 12−1 and #140 on 6−1 is running on momentum that has already faded.</p>
+      <ol>
+        <li>Annualized return <code>= Σr × 252 / n</code></li>
+        <li>Annualized volatility <code>= stdev(r) × √252</code></li>
+        <li><b>Score = annualized return ÷ annualized volatility</b></li>
+      </ol>
+      <p>Both legs are measured on the same window and the same return series, so the score is a
+         unitless figure: how much a fund out-earned cash per unit of the noise it made getting
+         there. Returns are annualized in log space, which is what keeps the ratio internally
+         consistent — but it also means a fund that fell 97% over the window reports a very large
+         negative annualized figure. The <b>total window return</b> in each row's detail is the
+         plain, compounded number.</p>
+
+      <h2>Why the T-bill return is netted out</h2>
+      <p>Dividing a raw return by volatility has one sharp consequence: <b>T-bill funds win.</b>
+         On that measure SGOV scored <b>19.5</b> — 3.8% annualized return against 0.2% volatility —
+         roughly six times the best real momentum name. Nothing was wrong with the arithmetic. A
+         near-riskless asset simply has a near-zero denominator, and essentially all of that 3.8%
+         <em>was</em> the risk-free rate.</p>
+      <p>So the numerator is the return <b>in excess of cash</b>, using the 1–3 month T-bill fund's
+         own return over the same window (<b id="rfn"></b>). That makes the score a true Sharpe
+         ratio and fixes the problem at its source rather than filtering around it: SGOV now scores
+         near zero, correctly, because it beat cash by nothing. Above roughly 10% volatility the
+         adjustment is invisible — subtracting 3.6% from a 200% annualized return moves the score
+         by about 0.02.</p>
+      <p>The <b id="cashn"></b> funds with annualized volatility under 3% are still tagged
+         <b>cash-like</b>, and the Hide row can still drop them, but they no longer need hiding to
+         keep the ranking sane. A few genuinely earn their place — an ultra-short credit fund that
+         reliably clears T-bills has a real information ratio, just an unlevered and very small one.
+         The <b>Raw score</b> in each row's detail, and as a sort, is the un-netted ratio.</p>
+
+      <h2>How much to trust a score</h2>
+      <p>A score is an estimate from a sample of daily returns, not a fact about the fund, and its
+         sampling error scales with <code>1/√n</code>. Each row's detail carries a <b>90% confidence
+         interval</b> from the standard Sharpe-ratio standard error,
+         <code>√252 · √((1 + s²/2) / n)</code>. It is wide: roughly <b>±1.7</b> on 12−1 and
+         <b>±2.6</b> on 6−1, against a top-of-list spread of a few tenths. Gaps under about 0.1 are
+         noise, and the shorter window buys its faster reaction with a materially noisier estimate.</p>
+      <p>One important exception. That interval describes the <em>level</em> of a single score.
+         Comparisons between two <em>correlated</em> funds are far sharper, because what matters
+         there is the error on their difference, and highly correlated funds barely differ. SOXX and
+         SOXQ, correlated 0.997, can be ordered with about 87% confidence off a gap of 0.09 — a gap
+         the intervals above would call meaningless. Trust the ranking most within a group, least
+         across the whole list.</p>
+
+      <h2>Grouping near-identical funds</h2>
+      <p>A score ranks <em>funds</em>, but what you can actually hold is <em>bets</em>, and the two
+         come apart badly at the top of a momentum screen. SOXX, SOXQ and SMH have pairwise
+         return correlations of <b>0.986 to 0.997</b>; strip out their market beta and the residuals
+         are still correlated <b>0.97+</b>. Owning all three is one position at triple size.</p>
+      <p>So the screen correlates every pair of daily return series over the <em>active</em> formation
+         window — switch to 6−1 and the groups re-form on 6−1 correlations —
+         and folds any fund correlated with a better-ranked one above the threshold into that fund's
+         row. Membership is measured <b>against the representative</b>, not chained through
+         intermediates, so a group never drifts into a different bet. Tap
+         <b>n near-identical funds</b> on any row to see what was folded in and at what correlation.</p>
+      <p>One caution the group list makes visible: correlation is scale-invariant, so a geared fund
+         is near-perfectly correlated with its own parent — SOXL and SOXX sit at <b>0.998</b>. They
+         are the same bet, but they are not substitutes, so each member shows its own annualized
+         volatility next to the correlation. Same direction, very different position size.</p>
+      <p>Grouping never removes a fund from the ranking — it nests it, and each row's detail still
+         reports its true rank across all funds. Turn it <b>Off</b> for the flat list, or loosen to
+         <b>r ≥ 0.90</b> to fold tight sector clusters rather than just index twins.</p>
+
+      <h2>Independent bets</h2>
+      <p>The third readout answers: if you bought the top rows shown in equal size, how many
+         genuinely separate positions would that be? It is
+         <code>N² / ΣΣ|r<sub>ij</sub>|</code> — the count of unrelated holdings carrying the same
+         risk as the basket. Ten uncorrelated funds score 10; ten copies of one fund score 1.
+         Correlations enter as absolute values on purpose: an inverse fund is a perfect hedge
+         against its own long, and that pair is one bet expressed twice, not a free lunch.</p>
+      <p>It sits near <b>2</b> here, and grouping barely moves it. That is not a bug in either
+         feature — it is the finding. Folding away near-twins removes funds that are
+         <em>the same holding</em>, but the leaders' remaining commonality is a shared factor:
+         the large-cap value block correlates about <b>0.79</b> internally, and market beta puts most
+         equity funds at 0.7–0.9 with each other regardless of what they own. A top 10 of ten
+         distinct tickers is still roughly two trades.</p>
+      <p>Loosening the threshold would not fix it either, and the screen deliberately stops at 0.90.
+         At <b>r ≥ 0.80</b> the value factor fund absorbs 44 others — including all three
+         semiconductor funds, which correlate 0.83–0.85 with it purely as equities. That is a
+         worse answer, not a looser one: separating a sector bet from plain market exposure needs
+         correlation measured on market-adjusted returns, not on raw returns at a lower bar.</p>
+
+      <h2>Reading a row</h2>
+      <p>The bar under each ticker places the score on a shared diverging scale centred on zero,
+         so relative standing is visible without reading the number. Scores beyond the scale are
+         clamped to its ends. Tap any row for the full window detail.</p>
+
+      <div class="caveat">
+        <b>Snapshot, not a live feed.</b> Every figure is fixed at the close shown in the header and
+        will not update. Leveraged and inverse products are ranked alongside everything else because
+        they clear the same liquidity bar — their daily-reset compounding makes a multi-month score
+        mean something different, so the Hide row lets you drop them. Momentum rank is a starting
+        screen, not a recommendation, and says nothing about what happens next.
+      </div>
+    </div>
+  </details>
+</main>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function () {
+  var PAYLOAD = JSON.parse(document.getElementById('data').textContent);
+  var META = PAYLOAD.meta, ROWS = PAYLOAD.rows, WIN = META.win;
+  var PAGE = 40, TOPN = 10;               // TOPN = basket the bets figure describes
+
+  ROWS.forEach(function (r, i) { r.i = i; });
+
+  // Every score, return, vol and rank exists once per formation window; M() is the
+  // single place the active one is chosen.
+  function M(r) { return r['w' + state.win]; }
+  function W() { return WIN[state.win]; }
+
+  // --- correlation features ----------------------------------------------
+  // Daily returns standardized over the full series, int16. The 6-1 window is the
+  // tail of the same series, so each window re-standardizes its own slice on first
+  // use; after that a dot product of two rows is exactly their correlation.
+  var VN = PAYLOAD.vecN, VEC = null, VCACHE = {};
+  (function decodeVectors() {
+    var bin = atob(PAYLOAD.vec), len = bin.length, bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    VEC = new Int16Array(bytes.buffer);
+  })();
+
+  function vectors() {
+    var key = state.win;
+    if (VCACHE[key]) return VCACHE[key];
+    var obs = WIN[key].obs, start = VN - obs, cnt = PAYLOAD.vecRows;
+    var A = new Float32Array(cnt * obs);
+    for (var k = 0; k < cnt; k++) {
+      var src = k * VN + start, dst = k * obs, m = 0, t;
+      for (t = 0; t < obs; t++) m += VEC[src + t];
+      m /= obs;
+      var s = 0;
+      for (t = 0; t < obs; t++) { var d = VEC[src + t] - m; A[dst + t] = d; s += d * d; }
+      s = Math.sqrt(s) || 1;
+      for (t = 0; t < obs; t++) A[dst + t] /= s;
+    }
+    VCACHE[key] = { a: A, obs: obs };
+    return VCACHE[key];
+  }
+
+  // Pairs above the grouping threshold, precomputed per window: scanning half a
+  // million pairs live would stall a phone, and only these pairs can ever group.
+  var ACACHE = {};
+  function adjacency() {
+    var key = state.win;
+    if (ACACHE[key]) return ACACHE[key];
+    var m = new Map(), e = PAYLOAD.edges[key];
+    for (var k = 0; k < e.length; k += 3) {
+      var a = e[k], b = e[k + 1], r = e[k + 2] / 1000;
+      if (!m.has(a)) m.set(a, []);
+      if (!m.has(b)) m.set(b, []);
+      m.get(a).push(b, r);
+      m.get(b).push(a, r);
+    }
+    ACACHE[key] = m;
+    return m;
+  }
+
+  function scoreSE(S, n) {
+    var s = S / Math.sqrt(252);                    // back to per-day units
+    return Math.sqrt(252) * Math.sqrt((1 + s * s / 2) / n);
+  }
+
+  function pairCorr(V, a, b) {
+    var oa = a * V.obs, ob = b * V.obs, s = 0;
+    for (var t = 0; t < V.obs; t++) s += V.a[oa + t] * V.a[ob + t];
+    return s;
+  }
+
+  // N^2 / sum|r_ij| -- the count of unrelated holdings carrying this basket's risk.
+  // Absolute value matters: an inverse fund is perfectly hedged against its own
+  // long, which is ONE bet expressed twice, not unlimited diversification.
+  function effectiveBets(list) {
+    var idx = [];
+    for (var k = 0; k < list.length; k++) if (list[k].v >= 0) idx.push(list[k].v);
+    var N = idx.length;
+    if (N < 2) return N;
+    var V = vectors(), off = 0;
+    for (var a = 0; a < N; a++)
+      for (var b = a + 1; b < N; b++) off += Math.abs(pairCorr(V, idx[a], idx[b]));
+    var total = N + 2 * off;
+    return Math.min(N, Math.max(1, (N * N) / total));
+  }
+
+  // Star clustering: every member is correlated with the REPRESENTATIVE above the
+  // threshold. No transitive chaining, so a group never drifts away from its head.
+  function groupBy(list, thr) {
+    if (!thr) return list.map(function (r) { return { rep: r, mem: [] }; });
+    var visible = new Map();
+    for (var k = 0; k < list.length; k++) visible.set(list[k].i, list[k]);
+    var ADJ = adjacency();
+    var taken = new Set(), out = [];
+    for (var k2 = 0; k2 < list.length; k2++) {
+      var rep = list[k2];
+      if (taken.has(rep.i)) continue;
+      taken.add(rep.i);
+      var mem = [], nb = ADJ.get(rep.i);
+      if (nb) {
+        for (var q = 0; q < nb.length; q += 2) {
+          var j = nb[q], rr = nb[q + 1];
+          if (rr >= thr && visible.has(j) && !taken.has(j)) {
+            taken.add(j);
+            mem.push({ row: visible.get(j), r: rr });
+          }
+        }
+        mem.sort(function (a, b) { return b.r - a.r; });
+      }
+      out.push({ rep: rep, mem: mem });
+    }
+    return out;
+  }
+
+  // The headline score nets out the T-bill return, which is what stops cash proxies
+  // from dominating -- so unlike the raw ratio, cash-like funds need no hiding.
+  var HEAD = 'xs';
+  var state = { win: '6', q: '', liq: 5000000, hideCash: false, hideLev: false,
+                hideInv: false, sort: HEAD, grp: 0.95, limit: PAGE };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var list = $('list'), moreBtn = $('more'), emptyEl = $('empty');
+
+  $('asof').textContent = fmtDate(META.asOf);
+  $('total').textContent = META.ranked.toLocaleString();
+
+  function paintWindow() {
+    var w = W();
+    $('h-win').textContent = w.label;
+    Array.prototype.forEach.call(document.querySelectorAll('.wl'), function (el) {
+      el.textContent = w.label;
+    });
+    $('winrange').textContent = fmtDate(w.windowStart) + ' → ' + fmtDate(w.windowEnd) +
+      ' · ' + w.obs + 'd';
+    $('uni').textContent = 'ann. · net of ' + (w.rf * 100).toFixed(2) + '% T-bill';
+    $('cashn').textContent = w.cashCount;
+    $('rfn').textContent = (w.rf * 100).toFixed(2) + '%';
+  }
+
+  function fmtDate(iso) {
+    var p = iso.split('-'), m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return +p[2] + ' ' + m[+p[1] - 1] + ' ' + p[0];
+  }
+  function pct(x) { return (x * 100).toFixed(1) + '%'; }
+  function signedPct(x) { return (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%'; }
+  function money(v) {
+    if (v >= 1e9) return '$' + (v / 1e9).toFixed(v >= 1e10 ? 0 : 1) + 'B';
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(v >= 1e8 ? 0 : 1) + 'M';
+    return '$' + Math.round(v / 1e3) + 'K';
+  }
+
+  function filtered() {
+    var q = state.q.trim().toLowerCase();
+    var out = ROWS.filter(function (r) {
+      if (r.dv < state.liq) return false;
+      if (state.hideCash && M(r).cash) return false;
+      if (state.hideLev && r.lev) return false;
+      if (state.hideInv && r.inv) return false;
+      if (q && r.s.toLowerCase().indexOf(q) < 0 && r.n.toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    var k = state.sort;
+    var val = k === 'dv' ? function (r) { return r.dv; }
+                         : function (r) { return M(r)[k]; };
+    out.sort(k === 'av' ? function (a, b) { return val(a) - val(b); }
+                        : function (a, b) { return val(b) - val(a); });
+    return out;
+  }
+
+  function meter(sc) {
+    var dom = W().domain, lo = dom[0], hi = dom[1], span = hi - lo;
+    var zero = (0 - lo) / span * 100;
+    var v = Math.max(lo, Math.min(hi, sc));
+    var at = (v - lo) / span * 100;
+    var left = Math.min(zero, at), width = Math.abs(at - zero);
+    return '<div class="meter"><i class="' + (sc >= 0 ? 'up' : 'dn') + '" style="left:' +
+      left.toFixed(2) + '%;width:' + Math.max(width, 0.6).toFixed(2) + '%"></i>' +
+      '<u style="left:' + zero.toFixed(2) + '%"></u></div>';
+  }
+
+  function memberHTML(m) {
+    var w = M(m.row), tags = '';
+    if (m.row.lev) tags += '<span class="tag lev">Lev</span>';
+    if (m.row.inv) tags += '<span class="tag">Inv</span>';
+    return '<div class="mem">' +
+      '<span class="mem-t mono">' + m.row.s + tags + '</span>' +
+      '<span class="mem-s mono ' + (w[HEAD] >= 0 ? 'up' : 'dn') + '">' + w[HEAD].toFixed(2) + '</span>' +
+      '<span class="mem-n">' + esc(m.row.n) + '</span>' +
+      '<span class="mem-r mono">r ' + m.r.toFixed(3) + ' · vol ' + pct(w.av) + '</span>' +
+    '</div>';
+  }
+
+  function groupHTML(g) {
+    if (!g.mem.length) return '';
+    var lo = g.mem[g.mem.length - 1].r, hi = g.mem[0].r;
+    var range = g.mem.length > 1 ? lo.toFixed(3) + '–' + hi.toFixed(3) : hi.toFixed(3);
+    return '<button class="grp-toggle" type="button" aria-expanded="false">' +
+        '<span class="caret">▶</span>' +
+        '<span>' + g.mem.length + ' near-identical fund' + (g.mem.length > 1 ? 's' : '') + '</span>' +
+        '<span class="rr">r ' + range + '</span>' +
+      '</button>' +
+      '<div class="grp" hidden>' + g.mem.map(memberHTML).join('') + '</div>';
+  }
+
+  function rowHTML(r, i) {
+    var w = M(r), cur = W();
+    var other = state.win === '12' ? '6' : '12';
+    var ow = r['w' + other], oLabel = WIN[other].label;
+    var ci = 1.645 * scoreSE(w[HEAD], w.obs);      // 90% interval
+    var drift = ow.rk - w.rk;               // positive => ranks WORSE on the other window
+    var cls = w[HEAD] >= 0 ? 'up' : 'dn';
+    var tags = '';
+    if (r.lev) tags += '<span class="tag lev">Lev</span>';
+    if (r.inv) tags += '<span class="tag">Inv</span>';
+    if (w.cash) tags += '<span class="tag">Cash-like</span>';
+    return '<li class="row" data-top="' + (i < 3 ? 1 : 0) + '">' +
+      '<button class="row-hd" type="button" aria-expanded="false">' +
+        '<span class="rank mono">' + (i + 1) + '</span>' +
+        '<span class="id">' +
+          '<span class="tkr-line"><span class="tkr mono">' + r.s + '</span>' + tags + '</span>' +
+          '<span class="nm">' + esc(r.n) + '</span>' +
+        '</span>' +
+        '<span class="sc-cell"><span class="sc mono ' + cls + '">' + w[HEAD].toFixed(2) + '</span>' +
+        '<span class="sc-lbl">Score</span></span>' +
+      '</button>' +
+      meter(w[HEAD]) +
+      '<dl class="stats">' +
+        '<div class="stat"><dt>Ann. return</dt><dd class="mono ' + (w.ar >= 0 ? 'up' : 'dn') + '">' + signedPct(w.ar) + '</dd></div>' +
+        '<div class="stat"><dt>Ann. vol</dt><dd class="mono">' + pct(w.av) + '</dd></div>' +
+        '<div class="stat"><dt>Med $ vol</dt><dd class="mono">' + money(r.dv) + '</dd></div>' +
+      '</dl>' +
+      '<div class="detail" hidden><dl>' +
+        '<dt>Total window return</dt><dd class="mono ' + (w.tr >= 0 ? 'up' : 'dn') + '">' + signedPct(w.tr) + '</dd>' +
+        '<dt>90% confidence interval <span class="hint">on the score</span></dt>' +
+          '<dd class="mono">' + (w[HEAD] - ci).toFixed(2) + ' – ' + (w[HEAD] + ci).toFixed(2) + '</dd>' +
+        '<dt>Raw score <span class="hint">no T-bill deducted</span></dt>' +
+          '<dd class="mono ' + (w.sc >= 0 ? 'up' : 'dn') + '">' + w.sc.toFixed(2) + '</dd>' +
+        '<dt>Formation window</dt><dd class="mono">' + fmtDate(cur.windowStart) + ' → ' + fmtDate(cur.windowEnd) + '</dd>' +
+        '<dt>Daily observations</dt><dd class="mono">' + w.obs + '</dd>' +
+        '<dt>Last close</dt><dd class="mono">$' + r.px.toFixed(2) + '</dd>' +
+        '<dt>Rank on ' + cur.label + '</dt><dd class="mono">#' + w.rk + ' of ' + META.ranked.toLocaleString() + '</dd>' +
+        '<dt>Rank on ' + oLabel + ' <span class="hint">score ' + ow[HEAD].toFixed(2) + '</span></dt>' +
+          '<dd class="mono">#' + ow.rk + ' <span class="drift ' + (drift > 0 ? 'dn' : drift < 0 ? 'up' : '') + '">' +
+          (drift === 0 ? '=' : (drift > 0 ? '▼' : '▲') + Math.abs(drift)) + '</span></dd>' +
+      '</dl>' + (r.n.length > 34 ? '<p class="note">' + esc(r.n) + '</p>' : '') + '</div>' +
+      (r.grp || '') +
+    '</li>';
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+
+  function render() {
+    var rows = filtered();
+    var groups = groupBy(rows, state.grp);
+    var folded = rows.length - groups.length;
+
+    var slice = groups.slice(0, state.limit);
+    list.innerHTML = slice.map(function (g, i) {
+      g.rep.grp = groupHTML(g);
+      return rowHTML(g.rep, i);
+    }).join('');
+
+    emptyEl.hidden = groups.length > 0;
+    moreBtn.hidden = groups.length <= state.limit;
+    moreBtn.textContent = 'Show more (' + (groups.length - state.limit).toLocaleString() + ' left)';
+
+    $('ro-shown').textContent = rows.length.toLocaleString();
+    $('ro-grp').textContent = folded.toLocaleString();
+
+    // The bets figure describes the basket you would actually act on: the top rows
+    // as displayed. With grouping on, that is one fund per cluster.
+    var head = groups.slice(0, TOPN).map(function (g) { return g.rep; });
+    if (head.length < 2) {
+      $('ro-bets').textContent = head.length ? '1' : '–';
+    } else {
+      var nb = effectiveBets(head);
+      $('ro-bets').innerHTML = nb.toFixed(1) +
+        '<small> / ' + head.length + '</small>';
+    }
+
+    $('grpline').textContent = state.grp
+      ? groups.length.toLocaleString() + ' rows after grouping at r ≥ ' + state.grp
+      : 'grouping off';
+
+    var medline = '';
+    if (rows.length) {
+      var scores = rows.map(function (r) { return M(r)[HEAD]; }).sort(function (a, b) { return a - b; });
+      medline = 'median score ' + scores[Math.floor(scores.length / 2)].toFixed(2);
+    }
+    $('medline').textContent = medline;
+  }
+
+  function reset() { state.limit = PAGE; render(); }
+
+  // --- events -------------------------------------------------------------
+  document.querySelectorAll('[data-win]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (state.win === b.dataset.win) return;
+      document.querySelectorAll('[data-win]').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      state.win = b.dataset.win;
+      paintWindow();
+      reset();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    });
+  });
+
+  $('q').addEventListener('input', function (e) { state.q = e.target.value; reset(); });
+
+  document.querySelectorAll('[data-liq]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-liq]').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      state.liq = +b.dataset.liq; reset();
+    });
+  });
+
+  document.querySelectorAll('[data-grp]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-grp]').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      state.grp = +b.dataset.grp; reset();
+    });
+  });
+
+  document.querySelectorAll('[data-sort]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-sort]').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      state.sort = b.dataset.sort; reset();
+    });
+  });
+
+  function toggle(el, key) {
+    el.addEventListener('click', function () {
+      state[key] = !state[key];
+      el.setAttribute('aria-pressed', String(state[key]));
+      reset();
+    });
+  }
+  toggle($('f-cash'), 'hideCash');
+  toggle($('f-lev'), 'hideLev');
+  toggle($('f-inv'), 'hideInv');
+
+  moreBtn.addEventListener('click', function () { state.limit += PAGE; render(); });
+
+  list.addEventListener('click', function (e) {
+    var gt = e.target.closest('.grp-toggle');
+    if (gt) {
+      var g = gt.parentNode.querySelector('.grp');
+      var gOpen = !g.hidden;
+      g.hidden = gOpen;
+      gt.setAttribute('aria-expanded', String(!gOpen));
+      gt.querySelector('.caret').textContent = gOpen ? '▶' : '▼';
+      return;
+    }
+    var hd = e.target.closest('.row-hd');
+    if (!hd) return;
+    var d = hd.parentNode.querySelector('.detail');
+    var open = !d.hidden;
+    d.hidden = open;
+    hd.setAttribute('aria-expanded', String(!open));
+  });
+
+  paintWindow();
+  render();
+})();
+</script>

@@ -1,0 +1,13 @@
+{
+  "name": "posty",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ETF risk-adjusted momentum screen",
+  "type": "module",
+  "scripts": {
+    "preview": "node tools/preview.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
