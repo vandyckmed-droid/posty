@@ -1,4 +1,4 @@
-"""Stage 5: risk-adjusted momentum over two formation windows.
+"""Stage 6: risk-adjusted momentum over two formation windows.
 
 Both windows skip the most recent 21 sessions (the "-1", sidestepping short-term
 reversal) and differ only in how far back they reach:
@@ -34,78 +34,6 @@ LEV = re.compile('|'.join([MULT, ULTRASHORT, ULTRA, r'\bultrapro\b', r'\bleverag
 SHORT = re.compile('|'.join([r'\binverse\b', r'\bbear\b', ULTRASHORT, DIR_SHORT,
                              r'(?<![a-z0-9])-[1-9](?:\.\d)?x\b']), re.I)
 
-# Buckets that are definitively not a basket of shares. "Real Estate (Listed/REITs)"
-# deliberately absent: a REIT fund holds listed equities and belongs with the stocks.
-NON_EQUITY = ('fixed income', 'fixed-income', 'bond', 'commodit', 'gold', 'alternativ',
-              'multi-asset', 'multi-sector', 'cash', 'high yield', 'loans', 'municipal',
-              'government', 'investment grade', 'asset allocation', 'real assets')
-# Sector labels the vendor uses for anything that is not an operating company.
-NOT_A_SECTOR = ('cash & others', 'other', 'others', 'cash', 'n/a', '')
-
-
-def _load(sym, suffix=''):
-    path = C.DATA / 'profile' / f'{sym}{suffix}.json'
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text() or 'null')
-    except (ValueError, OSError):
-        return None
-    return data or None
-
-
-def profile(sym):
-    """Cost, size and composition from stage 4. Absent fields simply do not render."""
-    data = _load(sym)
-    if not data:
-        return {}
-    p = data[0]
-    out = {}
-    if p.get('expenseRatio') is not None:
-        out['er'] = round(float(p['expenseRatio']), 3)
-    if p.get('assetsUnderManagement'):
-        out['aum'] = round(float(p['assetsUnderManagement']))
-    if p.get('holdingsCount') is not None:
-        out['hc'] = int(p['holdingsCount'])
-    for key, field in (('iss', 'etfCompany'), ('ac', 'assetClass')):
-        if p.get(field):
-            out[key] = str(p[field])
-
-    sectors = [(str(x.get('industry') or ''), float(x.get('exposure') or 0))
-               for x in (p.get('sectorsList') or [])]
-    sectors = [(nm, ex) for nm, ex in sectors if ex > 0]
-    sectors.sort(key=lambda x: -x[1])
-    if sectors:
-        out['sec'] = [[nm, round(ex, 1)] for nm, ex in sectors[:6]]
-
-    countries = []
-    for x in (_load(sym, '.country') or []):
-        pctstr = str(x.get('weightPercentage') or '').rstrip('%')
-        try:
-            pct = float(pctstr)
-        except ValueError:
-            continue
-        if pct > 0:
-            countries.append((str(x.get('country') or ''), pct))
-    countries.sort(key=lambda x: -x[1])
-    if countries:
-        out['cty'] = [[nm, round(pct, 1)] for nm, pct in countries[:4]]
-
-    # Is this a basket of shares? The sector mix is the reliable signal -- the vendor
-    # labels SPDR Gold Shares "Equity", but reports it as 100% Cash & Others. Where
-    # sector data is missing entirely, fall back to the asset class alone.
-    ac = (out.get('ac') or '').lower()
-    if any(k in ac for k in NON_EQUITY):
-        out['stk'] = False
-    elif sectors:
-        total = sum(ex for _, ex in sectors)
-        real = sum(ex for nm, ex in sectors if nm.strip().lower() not in NOT_A_SECTOR)
-        out['stk'] = bool(total) and (real / total) >= 0.60
-    else:
-        out['stk'] = any(k in ac for k in ('equity', 'stock', 'growth', 'real estate'))
-    return out
-
-
 liq = C.load('liquid.json')
 longest = max(C.WINDOWS.values())
 out, skipped = [], {'no_adj': 0, 'short_history': 0, 'bad_bars': 0}
@@ -123,7 +51,8 @@ for r in liq:
     name = r['name'] or ''
     rec = {'s': sym, 'n': name, 'dv': round(r['medDollarVol']), 'px': r['price'],
            'lev': bool(LEV.search(name)), 'inv': bool(SHORT.search(name))}
-    rec.update(profile(sym))
+    rec.update(C.profile(sym))
+    rec.update(C.holdings(sym))
     bad = False
     for key, total in C.WINDOWS.items():
         win = bars[-(total + 1):len(bars) - C.SKIP]

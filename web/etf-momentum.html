@@ -312,6 +312,25 @@
     font-variant-numeric: tabular-nums;
   }
   .mix-p { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .mix-sub {
+    display: block; margin-top: 2px; letter-spacing: 0; text-transform: none;
+    font-size: 9.5px; color: var(--faint);
+  }
+  .hold {
+    display: grid; grid-template-columns: 46px minmax(0,1fr) 54px 46px;
+    align-items: center; gap: 7px; margin-bottom: 3px;
+  }
+  .hold-t { font-size: 11px; font-weight: 640; letter-spacing: .01em; }
+  .hold-n {
+    font-size: 11px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .hold-b { height: 5px; background: var(--line-soft); border-radius: 3px; overflow: hidden; }
+  .hold-b i { display: block; height: 100%; background: var(--pos); border-radius: 3px; }
+  .hold-p {
+    font-size: 10.5px; color: var(--muted); text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
 
   .more {
     display: block; width: 100%; margin: 12px 0 0; font: inherit; font-size: 13.5px; font-weight: 600;
@@ -319,6 +338,7 @@
     background: var(--surface); border: 1px solid var(--line); color: var(--accent);
   }
   .more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .more[hidden], .empty[hidden], .detail[hidden], .grp[hidden] { display: none; }
   .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 34px 12px; }
 
   /* ---------- method ---------- */
@@ -583,14 +603,21 @@
          not, by itself, diversify you.</p>
 
       <h2>What a fund holds</h2>
-      <p>Per-stock holdings are <b>not available</b> here. That data sits behind a higher tier of
-         the price provider's API, and rather than show a stale or partial list this screen answers
-         the composition question at the level the data supports: each row's detail carries the
-         fund's <b>sector mix</b>, the <b>countries</b> it invests in, how many positions it holds,
-         its asset class and its issuer.</p>
-      <p>For most decisions that is the substance of it. A cybersecurity fund reading 95% technology
-         and 89% United States, across 30 positions, is well described — the individual names matter
-         less than the shape. Where they do matter, the fund's own page is the authority.</p>
+      <p>Every row's detail lists the fund's largest positions with their weights, taken from the
+         fund's own <b>Form N-PORT filing with the SEC</b>. The price vendor gates holdings behind
+         a higher tier, so these come from the primary source instead — the filing the fund is
+         legally required to make. Alongside them sit the fund's sector mix, the countries it
+         invests in, its position count, fee and issuer.</p>
+      <p><b>Check the date.</b> N-PORT is quarterly and published around 60 days after the period
+         it covers, so these holdings are a few months behind — the reporting date is printed above
+         every list rather than left implied. For an index fund that is usually a small matter: the
+         roster barely changes and only the weights drift. It is a real limitation for a fund that
+         trades actively, and for the very newest positions.</p>
+      <p>Two quirks worth knowing when reading a list. A fund's largest line is sometimes a cash
+         sweep vehicle or an affiliated pooled fund rather than an operating company — that is
+         normal, not an error. And the ticker column is blank where the filing gave only an
+         international identifier and no other fund in the universe named that security; the
+         company name is always shown.</p>
 
       <h2>Reading a row</h2>
       <p>The bar under each ticker places the score on a shared diverging scale centred on zero,
@@ -824,8 +851,29 @@
   // Per-stock holdings are not available from the data provider on this plan, so the
   // composition question is answered at the level that is: what kinds of company, and
   // where. Bars are shares of the fund, largest first.
+  // Holdings come from the fund's own SEC N-PORT filing. They are quarterly and lag
+  // by a couple of months, so the reporting date is shown rather than implied.
+  function holdingsHTML(r) {
+    if (!r.hTop) return '';
+    var rows = r.hTop.map(function (h) {
+      return '<div class="hold">' +
+        '<span class="hold-t mono">' + esc(h[0] || '·') + '</span>' +
+        '<span class="hold-n">' + esc(h[1]) + '</span>' +
+        '<span class="hold-b"><i style="width:' +
+          Math.max(1, Math.min(100, h[2] / r.hTop[0][2] * 100)).toFixed(1) + '%"></i></span>' +
+        '<span class="hold-p mono">' + h[2].toFixed(2) + '%</span>' +
+      '</div>';
+    }).join('');
+    return '<div class="mix"><div class="mix-h">Top company holdings ' +
+        '<span class="mix-sub">top ' + Math.min(10, r.hTop.length) + ' = ' +
+        r.hConc.toFixed(0) + '% of the fund · ' + r.hN + ' positions in all' +
+        (r.hEq != null ? ' · ' + r.hEq.toFixed(0) + '% in shares' : '') +
+        (r.hAsOf ? ' · SEC filing as of ' + fmtDate(r.hAsOf) : '') + '</span></div>' +
+      rows + '</div>';
+  }
+
   function mixHTML(r) {
-    var out = '';
+    var out = holdingsHTML(r);
     if (r.sec) {
       out += '<div class="mix"><div class="mix-h">Sector mix</div>' +
         r.sec.map(function (x) {
@@ -942,8 +990,9 @@
     }).join('');
 
     emptyEl.hidden = groups.length > 0;
-    moreBtn.hidden = groups.length <= state.limit;
-    moreBtn.textContent = 'Show more (' + (groups.length - state.limit).toLocaleString() + ' left)';
+    var remaining = groups.length - state.limit;
+    moreBtn.hidden = remaining <= 0;
+    if (remaining > 0) moreBtn.textContent = 'Show more (' + remaining.toLocaleString() + ' left)';
 
     $('ro-shown').textContent = rows.length.toLocaleString();
     $('ro-grp').textContent = folded.toLocaleString();

@@ -86,12 +86,28 @@ the ranking cannot see fees at all. That gap is often the only thing separating 
 funds making the identical bet: SOXQ charges 0.19% against SOXX at 0.33% and SMH at
 0.35%, for semiconductor exposure correlated 0.98–1.00.
 
-**Per-stock holdings are not available.** Every FMP holdings endpoint returns 402 on
-this plan (`etf/holdings`, `funds/disclosure`, `funds/disclosure-holders-latest`).
-What stage 4 does provide is shown in each row's detail instead: annual fee, fund
-size, holdings count, asset class, issuer, full **sector mix** and **country mix**.
-The country figures were sanity-checked against a third-party terminal — CIBR reads
-89% United States in both.
+### Holdings
+
+Every FMP holdings endpoint returns 402 on this plan (`etf/holdings`,
+`funds/disclosure`, `funds/disclosure-holders-latest`), so stage 5 goes to the
+primary source: each fund's **Form N-PORT filing with the SEC**, which is public,
+free and authoritative. Ticker, name, weight and country per position.
+
+Two details that are easy to get wrong:
+
+- **Amendments restate old periods.** Taking the newest *filing* lands on stale data —
+  SOXX filed an `NPORT-P/A` in July 2026 covering September 2025. The stage takes the
+  newest **original** `NPORT-P` instead, which gives March 2026.
+- **Issuers disclose different identifiers.** First Trust tags every position with a
+  ticker; iShares and Vanguard give only an ISIN. Because those overlap across funds,
+  the filings that carry both are harvested into an ISIN→ticker map and used to name
+  the rest — no extra requests.
+
+N-PORT is quarterly and published ~60 days after the period it covers, so holdings run
+a few months behind. The reporting date is carried through and displayed above every
+list. Alongside them, stage 4 supplies annual fee, fund size, position count, asset
+class, issuer, **sector mix** and **country mix**; the country figures cross-check
+against a third-party terminal (CIBR reads 89% United States in both).
 
 The readout reports `N² / ΣΣ|r_ij|` over the top rows shown — the number of unrelated
 holdings carrying the same risk as that basket. Absolute values matter: an inverse
@@ -132,9 +148,10 @@ Individual stages:
 | `03_screen.py` | the liquidity screen above |
 | `02_history.py adj` | split- and dividend-adjusted closes for survivors |
 | `04_profile.py` | fee, size, holdings count, issuer, sector mix per fund |
-| `05_score.py` | both windows: score, return, vol, rank, excess, cash flag |
-| `06_corr.py` | per-window correlation edges + return vectors for the page |
-| `07_page.py` | inject the payload into `web/etf-momentum.html`, validate |
+| `05_holdings.py` | top positions and weights from SEC N-PORT filings |
+| `06_score.py` | both windows: score, return, vol, rank, excess, cash flag |
+| `07_corr.py` | per-window correlation edges + return vectors for the page |
+| `08_page.py` | inject the payload into `web/etf-momentum.html`, validate |
 
 Fetch stages are **resumable** — completed symbol files are skipped, so re-running
 retries only failures. Data lands in `./data`; override with `ETF_DATA`. To rebuild a
@@ -159,7 +176,7 @@ measured.)
 
 ## Publishing
 
-`07_page.py` emits a standalone file. It is published as a Claude artifact; republish
+`08_page.py` emits a standalone file. It is published as a Claude artifact; republish
 the same path to update in place. The page is a **snapshot** — every figure is fixed
 at the close it was built from and never updates.
 

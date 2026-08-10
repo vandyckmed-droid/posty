@@ -93,3 +93,100 @@ def bars_for(symbol, subdir, price_key='close'):
     bars = [b for b in bars if b.get('date', '') < CUTOFF and b.get(price_key)]
     bars.sort(key=lambda b: b['date'])
     return bars
+
+
+# Buckets that are definitively not a basket of shares. "Real Estate (Listed/REITs)"
+# deliberately absent: a REIT fund holds listed equities and belongs with the stocks.
+NON_EQUITY = ('fixed income', 'fixed-income', 'bond', 'commodit', 'gold', 'alternativ',
+              'multi-asset', 'multi-sector', 'cash', 'high yield', 'loans', 'municipal',
+              'government', 'investment grade', 'asset allocation', 'real assets')
+# Sector labels the vendor uses for anything that is not an operating company.
+NOT_A_SECTOR = ('cash & others', 'other', 'others', 'cash', 'n/a', '')
+
+
+def _load(sym, suffix='', subdir='profile'):
+    path = DATA / subdir / f'{sym}{suffix}.json'
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text() or 'null')
+    except (ValueError, OSError):
+        return None
+    return data or None
+
+
+def profile(sym):
+    """Cost, size and composition from stage 4. Absent fields simply do not render."""
+    data = _load(sym)
+    if not data:
+        return {}
+    p = data[0]
+    out = {}
+    if p.get('expenseRatio') is not None:
+        out['er'] = round(float(p['expenseRatio']), 3)
+    if p.get('assetsUnderManagement'):
+        out['aum'] = round(float(p['assetsUnderManagement']))
+    if p.get('holdingsCount') is not None:
+        out['hc'] = int(p['holdingsCount'])
+    for key, field in (('iss', 'etfCompany'), ('ac', 'assetClass')):
+        if p.get(field):
+            out[key] = str(p[field])
+
+    sectors = [(str(x.get('industry') or ''), float(x.get('exposure') or 0))
+               for x in (p.get('sectorsList') or [])]
+    sectors = [(nm, ex) for nm, ex in sectors if ex > 0]
+    sectors.sort(key=lambda x: -x[1])
+    if sectors:
+        out['sec'] = [[nm, round(ex, 1)] for nm, ex in sectors[:6]]
+
+    countries = []
+    for x in (_load(sym, '.country') or []):
+        pctstr = str(x.get('weightPercentage') or '').rstrip('%')
+        try:
+            pct = float(pctstr)
+        except ValueError:
+            continue
+        if pct > 0:
+            countries.append((str(x.get('country') or ''), pct))
+    countries.sort(key=lambda x: -x[1])
+    if countries:
+        out['cty'] = [[nm, round(pct, 1)] for nm, pct in countries[:4]]
+
+    # Is this a basket of shares? The sector mix is the reliable signal -- the vendor
+    # labels SPDR Gold Shares "Equity", but reports it as 100% Cash & Others. Where
+    # sector data is missing entirely, fall back to the asset class alone.
+    ac = (out.get('ac') or '').lower()
+    if any(k in ac for k in NON_EQUITY):
+        out['stk'] = False
+    elif sectors:
+        total = sum(ex for _, ex in sectors)
+        real = sum(ex for nm, ex in sectors if nm.strip().lower() not in NOT_A_SECTOR)
+        out['stk'] = bool(total) and (real / total) >= 0.60
+    else:
+        out['stk'] = any(k in ac for k in ('equity', 'stock', 'growth', 'real estate'))
+    return out
+
+
+def holdings(sym):
+    """Top company positions from stage 5 (SEC N-PORT).
+
+    Filtered to operating companies (assetCat "EC"). A fund's single largest line is
+    often a cash sweep or an affiliated pooled vehicle -- XBI's biggest position is a
+    State Street cash fund at 8% -- which is normal but answers no question about what
+    the fund is betting on. The share of the fund actually held in shares is reported
+    separately instead of being silently dropped.
+    """
+    data = _load(sym, subdir='holdings')
+    if not data or data.get('err') or not data.get('top'):
+        return {}
+    top = [[p.get('t') or '', p.get('n') or '', p.get('p') or 0.0]
+           for p in data['top'] if (p.get('p') or 0) > 0 and p.get('eq')]
+    if not top:
+        return {}
+    return {
+        'hAsOf': data.get('asOf'),
+        'hN': data.get('total'),
+        'hEq': data.get('eqPct'),
+        'hTop': top[:12],
+        'hConc': round(sum(x[2] for x in top[:10]), 1),   # weight of the top ten
+    }

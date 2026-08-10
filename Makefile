@@ -22,11 +22,12 @@ fetch:
 	$(PY) pipeline/03_screen.py
 	$(PY) pipeline/02_history.py adj
 	$(PY) pipeline/04_profile.py
+	$(PY) pipeline/05_holdings.py
 
 page:
-	$(PY) pipeline/05_score.py
-	$(PY) pipeline/06_corr.py
-	$(PY) pipeline/07_page.py
+	$(PY) pipeline/06_score.py
+	$(PY) pipeline/07_corr.py
+	$(PY) pipeline/08_page.py
 
 preview: $(PAGE)
 	node tools/preview.mjs $(PAGE) $(DATA)
