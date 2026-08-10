@@ -373,11 +373,11 @@
       <button class="chip" id="f-inv" aria-pressed="false">Inverse</button>
     </div>
 
-    <div class="rail" role="group" aria-label="Group near-identical funds">
+    <div class="rail" role="group" aria-label="Fold similar funds together">
       <span class="rail-lbl">Group</span>
-      <button class="chip" data-grp="0.95" aria-pressed="true">r ≥ 0.95</button>
-      <button class="chip" data-grp="0.9" aria-pressed="false">r ≥ 0.90</button>
-      <button class="chip" data-grp="0" aria-pressed="false">Off</button>
+      <button class="chip" data-grp="bet" aria-pressed="true">Same bet</button>
+      <button class="chip" data-grp="fund" aria-pressed="false">Same fund</button>
+      <button class="chip" data-grp="off" aria-pressed="false">Off</button>
     </div>
 
     <div class="rail" role="group" aria-label="Sort order">
@@ -397,7 +397,7 @@
     </div>
     <div class="ro">
       <span class="ro-v" id="ro-grp">0</span>
-      <span class="ro-l">folded into<br>a near-twin</span>
+      <span class="ro-l" id="ro-grp-l">folded into<br>the same bet</span>
     </div>
     <div class="ro hl">
       <span class="ro-v" id="ro-bets">–</span>
@@ -490,43 +490,58 @@
          the intervals above would call meaningless. Trust the ranking most within a group, least
          across the whole list.</p>
 
-      <h2>Grouping near-identical funds</h2>
+      <h2>Grouping similar funds</h2>
       <p>A score ranks <em>funds</em>, but what you can actually hold is <em>bets</em>, and the two
-         come apart badly at the top of a momentum screen. SOXX, SOXQ and SMH have pairwise
-         return correlations of <b>0.986 to 0.997</b>; strip out their market beta and the residuals
-         are still correlated <b>0.97+</b>. Owning all three is one position at triple size.</p>
-      <p>So the screen correlates every pair of daily return series over the <em>active</em> formation
-         window — switch to 6−1 and the groups re-form on 6−1 correlations —
-         and folds any fund correlated with a better-ranked one above the threshold into that fund's
-         row. Membership is measured <b>against the representative</b>, not chained through
-         intermediates, so a group never drifts into a different bet. Tap
-         <b>n near-identical funds</b> on any row to see what was folded in and at what correlation.</p>
-      <p>One caution the group list makes visible: correlation is scale-invariant, so a geared fund
-         is near-perfectly correlated with its own parent — SOXL and SOXX sit at <b>0.998</b>. They
-         are the same bet, but they are not substitutes, so each member shows its own annualized
-         volatility next to the correlation. Same direction, very different position size.</p>
-      <p>Grouping never removes a fund from the ranking — it nests it, and each row's detail still
-         reports its true rank across all funds. Turn it <b>Off</b> for the flat list, or loosen to
-         <b>r ≥ 0.90</b> to fold tight sector clusters rather than just index twins.</p>
+         come apart badly at the top of a momentum screen. SOXX, SOXQ and SMH have pairwise return
+         correlations of <b>0.986 to 0.997</b>. Owning all three is one position at triple size.</p>
+      <p>So the screen folds any fund that moves with a better-ranked one into that fund's row.
+         There are two ideas of "moves with", and the <b>Group</b> row picks between them:</p>
+      <ul>
+        <li><b>Same fund</b> — raw return correlation above 0.95. Catches index twins: different
+            wrappers around the same holdings.</li>
+        <li><b>Same bet</b> — correlation above <b id="rescut"></b> <em>after removing the market</em>.
+            Catches a theme held through different funds, issuers and gearing. This is the default.</li>
+      </ul>
+      <p>The market being removed is not a chosen benchmark. It is the single strongest pattern of
+         shared movement in this window's own data — the first principal component, worth
+         <b id="pc1n"></b> of all variance across the 1,058 funds. Using the data's own common
+         factor rather than an equity index matters here, because plenty of these funds are not
+         equities: measured this way, Treasury funds cluster with Treasury funds and bitcoin funds
+         with bitcoin funds, without anything being told what asset class it belongs to.</p>
+      <p>The difference is stark. On raw correlation, semiconductors and large-cap value sit at
+         <b>0.52</b> — high enough to look related, but only because both are equities. Remove the
+         market and they fall to <b>−0.18</b>: unrelated, correctly. Semiconductors against each
+         other barely move, <b>0.99 to 0.98</b>. That separation is exactly what a raw correlation
+         cannot make at any threshold, which is why an earlier attempt at simply loosening the raw
+         bar to 0.80 had a value fund swallowing all three semiconductor funds.</p>
+      <p>Membership is always measured <b>against the representative</b>, never chained through
+         intermediates, so a group cannot drift into a different bet. Tap the summary line on any
+         row to see what was folded in and how closely it tracks. Grouping never removes a fund from
+         the ranking — it nests it, and each row's detail still reports its true rank across all
+         funds. Correlations are recomputed per window, so switching to 12−1 re-forms the groups.</p>
+      <p>One caution the group list makes visible: correlation ignores scale, so a geared fund is
+         near-perfectly correlated with its own parent — SOXL and SOXX sit at <b>0.995</b>. They are
+         the same bet, but they are not substitutes, so every member shows its own annualized
+         volatility beside the correlation. Same direction, very different position size.</p>
 
       <h2>Independent bets</h2>
       <p>The third readout answers: if you bought the top rows shown in equal size, how many
          genuinely separate positions would that be? It is
-         <code>N² / ΣΣ|r<sub>ij</sub>|</code> — the count of unrelated holdings carrying the same
-         risk as the basket. Ten uncorrelated funds score 10; ten copies of one fund score 1.
-         Correlations enter as absolute values on purpose: an inverse fund is a perfect hedge
-         against its own long, and that pair is one bet expressed twice, not a free lunch.</p>
-      <p>It sits near <b>2</b> here, and grouping barely moves it. That is not a bug in either
-         feature — it is the finding. Folding away near-twins removes funds that are
-         <em>the same holding</em>, but the leaders' remaining commonality is a shared factor:
-         the large-cap value block correlates about <b>0.79</b> internally, and market beta puts most
-         equity funds at 0.7–0.9 with each other regardless of what they own. A top 10 of ten
-         distinct tickers is still roughly two trades.</p>
-      <p>Loosening the threshold would not fix it either, and the screen deliberately stops at 0.90.
-         At <b>r ≥ 0.80</b> the value factor fund absorbs 44 others — including all three
-         semiconductor funds, which correlate 0.83–0.85 with it purely as equities. That is a
-         worse answer, not a looser one: separating a sector bet from plain market exposure needs
-         correlation measured on market-adjusted returns, not on raw returns at a lower bar.</p>
+         <code>N² / ΣΣ|r<sub>ij</sub>|</code> on <em>raw</em> correlations — the count of unrelated
+         holdings carrying the same risk as the basket, and raw is right here because raw is what
+         your money actually experiences. Ten uncorrelated funds score 10; ten copies of one fund
+         score 1. Correlations enter as absolute values on purpose: an inverse fund is a perfect
+         hedge against its own long, and that pair is one bet expressed twice, not a free lunch.</p>
+      <p>It sits near <b>2</b>, and no grouping setting moves it much — market-adjusted grouping
+         included. That is worth stating plainly, because it is the finding rather than a gap in the
+         tool. Folding away duplicates changes <em>which</em> ten funds you see, not how much they
+         overlap; when a near-twin is folded away, the fund promoted from beneath it tends to be
+         about as correlated with the rest. The top of a momentum screen is genuinely one or two
+         trades wearing ten tickers, and that is a fact about the market in this window, not an
+         artifact to engineer away.</p>
+      <p>Which makes the two readouts a useful pair. <b>Same bet</b> grouping tells you what you are
+         really choosing between. The bets figure tells you that choosing more rows from the top will
+         not, by itself, diversify you.</p>
 
       <h2>Reading a row</h2>
       <p>The bar under each ticker places the score on a shared diverging scale centred on zero,
@@ -587,13 +602,27 @@
     return VCACHE[key];
   }
 
-  // Pairs above the grouping threshold, precomputed per window: scanning half a
-  // million pairs live would stall a phone, and only these pairs can ever group.
+  // Two ways to be "similar", each a precomputed pair list per window (scanning half
+  // a million pairs live would stall a phone):
+  //   fund - raw return correlation. Catches the same HOLDING: index twins.
+  //   bet  - correlation after removing the market factor. Catches the same BET:
+  //          a theme held through different funds, different issuers, different
+  //          gearing. This is what separates a sector wager from plain market
+  //          exposure, which raw correlation cannot do at any threshold.
+  var MODES = {
+    bet:  { src: 'redges', thr: PAYLOAD.residCut, noun: 'the same bet',
+            tile: 'folded into<br>the same bet' },
+    fund: { src: 'edges',  thr: 0.95,             noun: 'near-identical',
+            tile: 'folded into<br>a near-twin' }
+  };
+
   var ACACHE = {};
   function adjacency() {
-    var key = state.win;
+    var mode = MODES[state.grp];
+    if (!mode) return new Map();
+    var key = state.win + ':' + state.grp;
     if (ACACHE[key]) return ACACHE[key];
-    var m = new Map(), e = PAYLOAD.edges[key];
+    var m = new Map(), e = PAYLOAD[mode.src][state.win];
     for (var k = 0; k < e.length; k += 3) {
       var a = e[k], b = e[k + 1], r = e[k + 2] / 1000;
       if (!m.has(a)) m.set(a, []);
@@ -633,8 +662,10 @@
 
   // Star clustering: every member is correlated with the REPRESENTATIVE above the
   // threshold. No transitive chaining, so a group never drifts away from its head.
-  function groupBy(list, thr) {
-    if (!thr) return list.map(function (r) { return { rep: r, mem: [] }; });
+  function groupBy(list, mode) {
+    var cfg = MODES[mode];
+    if (!cfg) return list.map(function (r) { return { rep: r, mem: [] }; });
+    var thr = cfg.thr;
     var visible = new Map();
     for (var k = 0; k < list.length; k++) visible.set(list[k].i, list[k]);
     var ADJ = adjacency();
@@ -663,13 +694,14 @@
   // from dominating -- so unlike the raw ratio, cash-like funds need no hiding.
   var HEAD = 'xs';
   var state = { win: '6', q: '', liq: 5000000, hideCash: false, hideLev: false,
-                hideInv: false, sort: HEAD, grp: 0.95, limit: PAGE };
+                hideInv: false, sort: HEAD, grp: 'bet', limit: PAGE };
 
   var $ = function (id) { return document.getElementById(id); };
   var list = $('list'), moreBtn = $('more'), emptyEl = $('empty');
 
   $('asof').textContent = fmtDate(META.asOf);
   $('total').textContent = META.ranked.toLocaleString();
+  $('rescut').textContent = PAYLOAD.residCut.toFixed(2);
 
   function paintWindow() {
     var w = W();
@@ -681,6 +713,7 @@
       ' · ' + w.obs + 'd';
     $('uni').textContent = 'ann. · net of ' + (w.rf * 100).toFixed(2) + '% T-bill';
     $('cashn').textContent = w.cashCount;
+    $('pc1n').textContent = (PAYLOAD.pc1[state.win] * 100).toFixed(0) + '%';
     $('rfn').textContent = (w.rf * 100).toFixed(2) + '%';
   }
 
@@ -743,7 +776,7 @@
     var range = g.mem.length > 1 ? lo.toFixed(3) + '–' + hi.toFixed(3) : hi.toFixed(3);
     return '<button class="grp-toggle" type="button" aria-expanded="false">' +
         '<span class="caret">▶</span>' +
-        '<span>' + g.mem.length + ' near-identical fund' + (g.mem.length > 1 ? 's' : '') + '</span>' +
+        '<span>' + g.mem.length + ' more making ' + MODES[state.grp].noun + '</span>' +
         '<span class="rr">r ' + range + '</span>' +
       '</button>' +
       '<div class="grp" hidden>' + g.mem.map(memberHTML).join('') + '</div>';
@@ -817,6 +850,7 @@
 
     $('ro-shown').textContent = rows.length.toLocaleString();
     $('ro-grp').textContent = folded.toLocaleString();
+    $('ro-grp-l').innerHTML = MODES[state.grp] ? MODES[state.grp].tile : 'grouping<br>is off';
 
     // The bets figure describes the basket you would actually act on: the top rows
     // as displayed. With grouping on, that is one fund per cluster.
@@ -829,8 +863,8 @@
         '<small> / ' + head.length + '</small>';
     }
 
-    $('grpline').textContent = state.grp
-      ? groups.length.toLocaleString() + ' rows after grouping at r ≥ ' + state.grp
+    $('grpline').textContent = MODES[state.grp]
+      ? groups.length.toLocaleString() + ' distinct rows after grouping'
       : 'grouping off';
 
     var medline = '';
@@ -870,7 +904,7 @@
     b.addEventListener('click', function () {
       document.querySelectorAll('[data-grp]').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
       b.setAttribute('aria-pressed', 'true');
-      state.grp = +b.dataset.grp; reset();
+      state.grp = b.dataset.grp; reset();
     });
   });
 

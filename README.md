@@ -53,25 +53,43 @@ return no price history. As of the last build, 10,404 listed ETFs → 6,284 US-l
 
 ## Grouping and diversification
 
-Funds whose daily returns correlate above a threshold (0.95 by default, 0.90
-available) with a better-ranked fund are folded into that fund's row. Membership is
-measured **against the representative**, never chained transitively, so a group
-cannot drift into a different bet. Correlations are recomputed per window.
+Funds that move with a better-ranked fund are folded into that fund's row, under one
+of two definitions of "move with":
+
+- **Same fund** — raw return correlation ≥ 0.95. Index twins: different wrappers
+  around the same holdings.
+- **Same bet** (default) — correlation ≥ 0.85 *after removing the market factor*. A
+  theme held through different funds, issuers and gearing.
+
+The market factor is not a chosen benchmark; it is the first principal component of
+the window's own correlation matrix (≈47% of variance on 12−1, ≈52% on 6−1). That
+matters because much of this universe is not equities: measured this way, Treasury
+funds cluster with Treasury funds and bitcoin funds with bitcoin funds, with nothing
+told what asset class it belongs to. Removing it separates a sector wager from plain
+market exposure — semiconductors vs large-cap value falls from **0.52 raw to −0.18
+adjusted**, while semiconductors against each other barely move (0.99 → 0.98).
+
+Membership is measured **against the representative**, never chained transitively, so
+a group cannot drift into a different bet. Correlations are recomputed per window.
 
 The readout reports `N² / ΣΣ|r_ij|` over the top rows shown — the number of unrelated
 holdings carrying the same risk as that basket. Absolute values matter: an inverse
 fund is a perfect hedge against its own long, which is one bet expressed twice, not
 free diversification.
 
+The bets figure deliberately uses **raw** correlation, not market-adjusted: raw is
+what your money actually experiences.
+
 Two findings this surfaced, both documented in the page's own method section:
 
-- SOXX, SOXQ and SMH correlate **0.986–0.997**, and still **0.97+** after stripping
-  market beta. Owning all three is one position at triple size.
-- Grouping barely moves the effective-bets figure, which sits near **2 out of 10**.
-  That is not a bug — de-duplication removes funds that are the same *holding*, but
-  the leaders' remaining commonality is a shared *factor*. Loosening the threshold
-  does not fix it: at r ≥ 0.80 the value factor fund absorbs 44 others including all
-  three semiconductor funds, which correlate with it purely as equities.
+- SOXX, SOXQ and SMH correlate **0.986–0.997**, and still **0.98** after removing the
+  market. Owning all three is one position at triple size.
+- **No grouping setting moves the effective-bets figure**, which sits near 2 out of
+  10 — market-adjusted grouping included. Folding duplicates changes *which* ten funds
+  you see, not how much they overlap; the fund promoted from beneath a folded twin
+  tends to be about as correlated with the rest. The top of a momentum screen is
+  genuinely one or two trades wearing ten tickers. That is a fact about the market in
+  this window, not an artifact to engineer away.
 
 ## Running it
 
@@ -127,14 +145,13 @@ at the close it was built from and never updates.
 
 Deliberately unresolved, recorded here so they are not lost:
 
-- **Market-residual grouping.** Raw correlation cannot separate a sector bet from
-  plain market exposure. Stripping the universe's first principal component (rather
-  than a chosen equity benchmark) would handle mixed asset classes automatically —
-  bonds and commodities load near zero on it and would barely move — PC1 is discovered
-  from the data rather than chosen, so nothing is measured against a benchmark it has
-  no business being compared to. The catch is that PC1 is refitted per window, so it is
-  not a stable, nameable thing across rebuilds. Not built; it may also be that ~2
-  independent bets in the top 10 is simply true.
+- **PC1 is refitted per window and per rebuild**, so "the market factor" is not a
+  stable, nameable thing across snapshots the way a named index would be. Groups can
+  therefore shift between rebuilds for reasons that have nothing to do with the funds.
+  Worth watching once there are several snapshots to compare.
+- **The 0.85 market-adjusted grouping threshold** was chosen by inspecting the groups
+  it produces, not derived. It keeps semiconductors together (0.98) and biotech (0.88)
+  while leaving large-cap value unmerged (0.55).
 - **The 3% volatility cash cutoff** and the exclusion of 32 liquid funds that have
   6−1 history but not 12−1. Both are documented in the page. Cash-like funds are now
   tagged but shown by default, since netting out the T-bill return removes the reason

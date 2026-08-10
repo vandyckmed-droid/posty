@@ -99,13 +99,13 @@ for (const scheme of ['light', 'dark']) {
       line: document.getElementById('grpline').textContent,
       rows: document.querySelectorAll('.row').length,
     }));
-    for (const t of ['0.95', '0.9', '0']) {
+    for (const t of ['bet', 'fund', 'off']) {
       await p.locator(`[data-grp="${t}"]`).click();
       await p.waitForTimeout(200);
       console.log(`  grp=${t}`, JSON.stringify(await readout()));
     }
-    // the semis cluster: does SOXX absorb SOXQ/SMH at 0.95?
-    await p.locator('[data-grp="0.95"]').click();
+    // the semis cluster: does one row absorb the rest?
+    await p.locator('[data-grp="bet"]').click();
     await p.locator('[data-liq="100000000"]').click();
     await p.locator('#q').fill('semiconductor');
     await p.waitForTimeout(200);

@@ -23,6 +23,7 @@ LONGEST = max(C.WINDOWS.values())
 # A window of T sessions ending SKIP days back spans T+1-SKIP closes, so T-SKIP returns.
 WIN_OBS = {k: v - C.SKIP for k, v in C.WINDOWS.items()}
 EDGE_CUT = C.EDGE_CUT
+RESID_CUT = C.RESID_CUT
 
 payload = C.load('ranked.json')
 rows = payload['rows']
@@ -79,24 +80,51 @@ def unit(M):
     return Z / math.sqrt(M.shape[1] - 1)
 
 
+def edge_list(corr, cut):
+    iu = np.triu_indices(len(corr), 1)
+    mask = corr[iu] >= cut
+    flat = []
+    for a, b, rr in zip(iu[0][mask], iu[1][mask], corr[iu][mask]):
+        flat += [vrow[a], vrow[b], int(round(rr * 1000))]
+    return flat, int(mask.sum())
+
+
 payload['edges'] = {}
+payload['redges'] = {}
+payload['pc1'] = {}
 for key, obs in WIN_OBS.items():
     exact = unit(R[:, n - obs:])
     quant = unit(Q[:, n - obs:].astype(float))
     corr = np.clip(exact @ exact.T, -1, 1)
     err = np.abs(np.clip(quant @ quant.T, -1, 1) - corr).max()
     iu = np.triu_indices(len(R), 1)
-    mask = corr[iu] >= EDGE_CUT
-    ei, ej, er = iu[0][mask], iu[1][mask], corr[iu][mask]
-    flat = []
-    for a, b, rr in zip(ei, ej, er):
-        flat += [vrow[a], vrow[b], int(round(rr * 1000))]
-    payload['edges'][key] = flat
+
+    # Raw correlation: catches funds that are the same HOLDING (index twins).
+    payload['edges'][key], nraw = edge_list(corr, EDGE_CUT)
+
+    # Market-adjusted correlation: catches funds that are the same BET.
+    # The common factor is the first principal component of this window's own
+    # correlation matrix, not a chosen benchmark -- so nothing is measured against
+    # an index it has no business being compared to, and non-equity funds sort
+    # themselves out (Treasuries cluster with Treasuries, bitcoin with bitcoin).
+    evals, evecs = np.linalg.eigh(corr)
+    factor = evecs[:, -1] @ exact
+    factor /= np.linalg.norm(factor)
+    resid = exact - np.outer(exact @ factor, factor)
+    resid /= np.linalg.norm(resid, axis=1, keepdims=True)
+    rcorr = np.clip(resid @ resid.T, -1, 1)
+    payload['redges'][key], nres = edge_list(rcorr, RESID_CUT)
+    payload['pc1'][key] = round(float(evals[-1] / len(corr)), 4)
+
     print(f'{key}-1: obs={obs}  quantization err={err:.2e}  '
-          f'edges>={EDGE_CUT}: {len(er):,} ({len(json.dumps(flat))/1024:.0f} KB)  '
-          f'mean|r|={np.abs(corr[iu]).mean():.3f}')
+          f'PC1 explains {payload["pc1"][key]:.1%}')
+    print(f'      raw edges >={EDGE_CUT}: {nraw:,} '
+          f'({len(json.dumps(payload["edges"][key]))/1024:.0f} KB)   '
+          f'market-adj edges >={RESID_CUT}: {nres:,} '
+          f'({len(json.dumps(payload["redges"][key]))/1024:.0f} KB)')
 
 payload['edgeCut'] = EDGE_CUT
+payload['residCut'] = RESID_CUT
 path = C.save('ranked.json', payload)
 print(f'\n{path} {path.stat().st_size/1024:.0f} KB')
 

@@ -34,7 +34,8 @@ SKIP = 21                      # the "-1": sessions between window end and today
 WINDOWS = {'12': 252, '6': 126}
 MAX_ABS_DAILY_LOGRET = 0.75    # a larger move implies an unadjusted split
 CASH_VOL = 0.03                # below this annualized vol, a fund is a cash proxy
-EDGE_CUT = 0.90                # lowest correlation the grouping UI can act on
+EDGE_CUT = 0.90                # lowest raw correlation the grouping UI can act on
+RESID_CUT = 0.85               # same, on market-adjusted (PC1-removed) correlation
 
 DATA.mkdir(parents=True, exist_ok=True)
 
