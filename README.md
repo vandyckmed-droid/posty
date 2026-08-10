@@ -7,7 +7,8 @@ watchlist builder, backed by Financial Modeling Prep end-of-day data.
 
 ```
 U.S. common stocks  →  top 1,000 by 63-day ADDV  →  12-1 + 6-1 percentile blend
-                    →  top 100 displayed  →  watchlist  →  126-day inverse-vol weights
+                    →  raw or risk-adjusted basis   →  top 100 displayed
+                    →  watchlist  →  126-day inverse-vol weights
                     →  sector counts and sector weight exposure
 ```
 
@@ -35,6 +36,36 @@ universe and blended:
 Combined Momentum Score = 0.5 × P(12-1) + 0.5 × P(6-1)
 ```
 
+## Ranking bases
+
+The screen ranks on either of two bases, switchable in the UI.
+
+**Raw** uses the returns above directly.
+
+**Risk-adjusted** divides each leg by the standard deviation measured over that
+leg's *own* window. Both σ windows end where the return ends — a month back, not
+at the last session — so numerator and denominator span exactly the same days:
+
+```
+IR(12-1) = ln(1 + R12-1) / (σ₂₅₂ × √252)      252 daily log returns ending at t-21
+IR(6-1)  = ln(1 + R6-1)  / (σ₁₂₆ × √126)      126 daily log returns ending at t-21
+```
+
+Log returns because a cumulative log return over N days has standard deviation
+`σ√N`, which makes the ratio a genuine t-statistic of drift rather than an
+arithmetic quantity that rewards multi-baggers for their arithmetic. The
+simple-return variant disagrees by a mean of 8.9 and up to 35 rank places.
+
+Both bases percentile-rank and blend identically within the same 1,000-name
+universe, so only the inputs differ. Inverse-volatility weighting is untouched —
+it still uses the 126-day realized volatility ending at the last session.
+
+The two bases share only 56 of their top 100. Risk adjustment does what it says:
+median realized volatility of the displayed names falls from 82.5% to 51.1% and
+the maximum from 702% to 178%, as volatility-driven names (ASTC, RXT, AAOI) drop
+out and steady compounders (CAT, CSCO, PANW, MOG-A) come in. The build ships the
+union of both top-100s so either view is complete client-side.
+
 **Volatility and weights.** Realized volatility is the sample standard deviation
 of the last 126 daily returns, annualized by `√252`. Watchlist weights are
 inverse-volatility, normalized to 100%:
@@ -57,7 +88,7 @@ python3 scripts/build_artifact.py   # inline the data  -> artifact/index.html
 `build_data.py` screens roughly 4,500 candidates and pulls ~16 months of daily
 bars for each, then re-fetches the liquid head as two years of dividend-adjusted
 closes for the returns, volatility and detail charts. A full run takes about
-eight minutes.
+thirteen minutes.
 
 ## Detail and comparison view
 
@@ -89,7 +120,7 @@ persists to `localStorage` in the viewer's browser.
 | `scripts/build_artifact.py` | Inlines the dataset into the template             |
 | `artifact/template.html`    | Interface source, with a `__DATA__` placeholder   |
 | `artifact/index.html`       | Generated, publishable artifact                   |
-| `data/momentum.json`        | Generated dataset (top 100 rows plus run metadata)|
+| `data/momentum.json`        | Generated dataset (both bases' top 100, plus metadata)|
 
 Research and educational use only — mechanical outputs of the formulas above,
 not investment advice.

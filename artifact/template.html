@@ -161,7 +161,9 @@ tbody tr.on{background:linear-gradient(90deg,var(--neon-glow),rgba(0,245,160,.02
 tbody tr.on:hover{background:linear-gradient(90deg,rgba(0,245,160,.22),rgba(0,245,160,.05) 34%,transparent 62%)}
 tbody tr.on td:first-child{box-shadow:inset 2px 0 0 var(--neon)}
 
+table:not(.ra-mode) .ir-col{display:none}
 .num{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:12px}
+.ir{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:12px; color:var(--volt)}
 .rk{font-family:var(--mono); font-size:11px; color:var(--ink-3); width:44px}
 .tk{font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:.01em}
 tr.on .tk{color:var(--neon)}
@@ -483,6 +485,11 @@ tr.on .tklink{color:var(--neon)}
           <button data-view="all" aria-pressed="true">All 100</button>
           <button data-view="watch" aria-pressed="false">Watchlist</button>
         </div>
+        <div class="seg" role="group" aria-label="Ranking basis">
+          <button data-basis="raw" aria-pressed="true" title="Rank on raw 12-1 and 6-1 total returns">Raw</button>
+          <button data-basis="ra" aria-pressed="false"
+                  title="Rank on each return divided by the standard deviation of its own window">Risk-adj</button>
+        </div>
         <span style="flex:1"></span>
         <span class="count" id="shown">—</span>
       </div>
@@ -499,6 +506,8 @@ tr.on .tklink{color:var(--neon)}
           <th class="l sortable" data-k="s" scope="col">Sector<span class="caret">▼</span></th>
           <th class="sortable" data-k="m12" scope="col">12-1 Ret<span class="caret">▼</span></th>
           <th class="sortable" data-k="m6" scope="col">6-1 Ret<span class="caret">▼</span></th>
+          <th class="sortable ir-col" data-k="i12" scope="col">12-1 IR<span class="caret">▼</span></th>
+          <th class="sortable ir-col" data-k="i6" scope="col">6-1 IR<span class="caret">▼</span></th>
           <th class="sortable" data-k="sc" scope="col">Score<span class="caret">▼</span></th>
           <th class="sortable" data-k="dv" scope="col">63d ADDV<span class="caret">▼</span></th>
           <th class="sortable" data-k="v" scope="col">126d Vol<span class="caret">▼</span></th>
@@ -568,6 +577,16 @@ tr.on .tklink{color:var(--neon)}
         <code>6-1</code> runs from 126 trading days ago to the same endpoint. Skipping the most
         recent month avoids short-term reversal. Each measure is percentile-ranked within the
         universe and blended <code>0.5 × P12-1 + 0.5 × P6-1</code>. The top 100 are shown.
+      </div>
+      <div>
+        <h3>Risk-adjusted basis</h3>
+        The <em>Risk-adj</em> toggle divides each leg by the standard deviation measured over
+        that leg's own window &mdash; both ending a month back, where the return ends, not at
+        the last session: <code>ln(1+R) / (&sigma; &times; &radic;N)</code> over N = 252 and
+        126 daily log returns. Log returns because a cumulative log return over N days has
+        standard deviation <code>&sigma;&radic;N</code>, which makes the ratio a t-statistic
+        of drift. Both ratios are percentile-ranked and blended in the same universe, so only
+        the inputs change. Inverse-volatility weighting is unaffected.
       </div>
       <div>
         <h3>Volatility &amp; weights</h3>
@@ -680,10 +699,36 @@ const watch = load();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...watch])); } catch {} };
 
 const state = {
+  basis: "raw",
   sort: "sc", dir: -1,
   query: "", sectors: new Set(),
   view: "all", pfSort: "w", group: false
 };
+
+/* Each row ships a self-contained block per basis. Copying the active one onto
+   the flat fields keeps every downstream consumer -- table, rail, detail sheet,
+   compare list -- reading `r.r` / `r.sc` exactly as before. */
+function applyBasis() {
+  ROWS.forEach(r => Object.assign(r, r[state.basis]));
+  document.getElementById("tbl").classList.toggle("ra-mode", state.basis === "ra");
+
+  // Chips and the median stat describe the 100 actually on screen, which the
+  // basis changes -- the shipped rows are the union of both bases' top 100.
+  const shown = ROWS.filter(r => r.r <= DATA.displaySize);
+  const counts = {};
+  shown.forEach(r => { counts[r.s] = (counts[r.s] || 0) + 1; });
+  const present = SECTORS.filter(s => counts[s]);
+  [...state.sectors].forEach(s => { if (!counts[s]) state.sectors.delete(s); });
+
+  document.getElementById("sectorchips").innerHTML =
+    present.map(s => `<button class="chip" data-sector="${esc(s)}"
+        aria-pressed="${state.sectors.has(s)}" style="--sc:${scolor(s)}">
+        <span class="swatch"></span>${esc(s)}<span class="n">${counts[s]}</span></button>`).join("") +
+    `<button class="linkbtn" id="secreset"${state.sectors.size ? "" : " hidden"}>Reset</button>`;
+
+  const med = shown.map(r => r.m12).sort((a, b) => a - b);
+  document.getElementById("s-m12").textContent = sgn(med[Math.floor(med.length / 2)], 0);
+}
 
 /* ── format ─────────────────────────────────────────────────────────────── */
 const pct  = (x, d = 1) => (x * 100).toFixed(d) + "%";
@@ -741,6 +786,7 @@ function portfolio() {
 function visibleRows() {
   const q = state.query.trim().toLowerCase();
   let rows = ROWS.filter(r => {
+    if (r.r > DATA.displaySize) return false;   // union is shipped; show this basis's 100
     if (state.view === "watch" && !watch.has(r.t)) return false;
     if (state.sectors.size && !state.sectors.has(r.s)) return false;
     if (q && !(r.t.toLowerCase().includes(q) || r.n.toLowerCase().includes(q))) return false;
@@ -776,6 +822,8 @@ function renderTable() {
       <td class="l"><span class="sec" style="--sc:${scolor(r.s)}"><i></i>${esc(r.s)}</span></td>
       <td class="num ${r.m12 >= 0 ? "up" : "dn"}">${sgn(r.m12)}</td>
       <td class="num ${r.m6 >= 0 ? "up" : "dn"}">${sgn(r.m6)}</td>
+      <td class="ir ir-col">${r.i12.toFixed(2)}</td>
+      <td class="ir ir-col">${r.i6.toFixed(2)}</td>
       <td><span class="score" style="--w:${r.sc}%" title="12-1 pctile ${r.p12.toFixed(1)} · 6-1 pctile ${r.p6.toFixed(1)}">
         <span class="bar"></span><span>${r.sc.toFixed(1)}</span></span></td>
       <td class="num" style="color:var(--ink-2)">${money(r.dv)}</td>
@@ -789,8 +837,9 @@ function renderTable() {
   empty.textContent = state.view === "watch" && !watch.size
     ? "No names on the watchlist yet — add one with the + button."
     : "Nothing matches these filters.";
+  const ranked = ROWS.reduce((n, r) => n + (r.r <= DATA.displaySize ? 1 : 0), 0);
   document.getElementById("shown").textContent =
-    rows.length === ROWS.length ? `${rows.length} names` : `${rows.length} of ${ROWS.length}`;
+    rows.length === ranked ? `${rows.length} names` : `${rows.length} of ${ranked}`;
 }
 
 /* ── rail ───────────────────────────────────────────────────────────────── */
@@ -1221,6 +1270,23 @@ document.addEventListener("click", e => {
     return;
   }
 
+  const basis = e.target.closest("[data-basis]");
+  if (basis) {
+    state.basis = basis.dataset.basis;
+    basis.parentElement.querySelectorAll("button")
+      .forEach(b => b.setAttribute("aria-pressed", String(b === basis)));
+    if (state.basis !== "ra" && (state.sort === "i12" || state.sort === "i6")) {
+      state.sort = "sc"; state.dir = -1;
+      document.querySelectorAll("th.sortable").forEach(h => h.removeAttribute("aria-sort"));
+      const d = document.querySelector('th[data-k="sc"]');
+      d.setAttribute("aria-sort", "descending");
+      d.querySelector(".caret").textContent = "▼";
+    }
+    applyBasis();
+    render();
+    return;
+  }
+
   const view = e.target.closest("[data-view]");
   if (view) {
     state.view = view.dataset.view;
@@ -1330,14 +1396,8 @@ new ResizeObserver(() => { if (detail.open) drawChart(); }).observe(canvas);
 
 /* ── init ───────────────────────────────────────────────────────────────── */
 (function init() {
-  const counts = {};
-  ROWS.forEach(r => { counts[r.s] = (counts[r.s] || 0) + 1; });
-  document.getElementById("sectorchips").innerHTML =
-    SECTORS.map(s => `<button class="chip" data-sector="${esc(s)}" aria-pressed="false"
-        style="--sc:${scolor(s)}"><span class="swatch"></span>${esc(s)}
-        <span class="n">${counts[s]}</span></button>`).join("") +
-    `<button class="linkbtn" id="secreset" hidden>Reset</button>`;
-  document.getElementById("secreset").addEventListener("click", () => {
+  document.getElementById("sectorchips").addEventListener("click", e => {
+    if (!e.target.closest("#secreset")) return;
     state.sectors.clear();
     document.querySelectorAll(".chip[data-sector]").forEach(c => c.setAttribute("aria-pressed", "false"));
     document.getElementById("secreset").hidden = true;
@@ -1357,10 +1417,10 @@ new ResizeObserver(() => { if (detail.open) drawChart(); }).observe(canvas);
   const share = DATA.displaySize / DATA.universeSize * 100;
   document.getElementById("s-disp").innerHTML =
     `${DATA.displaySize}<small>top ${share < 10 ? share.toFixed(1) : Math.round(share)}%</small>`;
-  const med = [...ROWS].map(r => r.m12).sort((a, b) => a - b);
-  document.getElementById("s-m12").textContent = sgn(med[Math.floor(med.length / 2)], 0);
   document.getElementById("m-screened").textContent = DATA.candidatesScreened.toLocaleString();
   document.getElementById("m-univ").textContent = DATA.universeSize.toLocaleString();
+
+  applyBasis();
 
   const th = document.querySelector('th[data-k="sc"]');
   th.setAttribute("aria-sort", "descending");

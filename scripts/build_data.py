@@ -9,8 +9,9 @@ Pipeline
    so ADDV alone uses unadjusted closes.
 3. Re-download the liquid head as 2-year dividend-adjusted (total-return) closes.
    Every return, volatility and chart figure downstream uses these.
-4. Keep the top 1,000 eligible names; compute 12-1 and 6-1 momentum,
-   percentile-rank both, blend 50/50.
+4. Keep the top 1,000 eligible names; compute 12-1 and 6-1 momentum on two
+   bases -- raw return, and return divided by the standard deviation of its own
+   window -- percentile-ranking and blending each 50/50 within that universe.
 5. Compute 126-day annualized realized volatility (used for inverse-vol weights).
 6. Emit data/momentum.json -- the only thing the artifact ever sees -- including a
    2-year aligned total-return series per displayed name for the detail charts.
@@ -20,6 +21,7 @@ process: it is not written to the output file and not shipped to the browser.
 """
 
 import json
+import math
 import os
 import re
 import sys
@@ -159,15 +161,36 @@ def performance(bars):
     p_recent = closes[-(SKIP_MONTH + 1)]          # ~1 month ago
     p_12m = closes[-(LOOKBACK_12M + SKIP_MONTH + 1)]
     p_6m = closes[-(LOOKBACK_6M + SKIP_MONTH + 1)]
+    ret12 = p_recent / p_12m - 1.0
+    ret6 = p_recent / p_6m - 1.0
 
     rets = [closes[i] / closes[i - 1] - 1.0 for i in range(n - VOL_WINDOW, n)]
     sd = stdev(rets)
     if sd is None:
         return None
 
+    # Risk-adjusted legs: each return divided by the standard deviation measured
+    # over that return's own window. Both windows END WHERE THE RETURN ENDS -- at
+    # `e`, a month back -- not at the last session. Log returns, because the
+    # cumulative log return over N days has standard deviation sigma * sqrt(N),
+    # which makes the ratio a genuine t-statistic of drift rather than an
+    # arithmetic quantity that rewards multi-baggers for their arithmetic.
+    e = n - (SKIP_MONTH + 1)
+    s12 = n - (LOOKBACK_12M + SKIP_MONTH + 1)
+    s6 = n - (LOOKBACK_6M + SKIP_MONTH + 1)
+
+    def log_sd(start):
+        return stdev([math.log(closes[i] / closes[i - 1]) for i in range(start + 1, e + 1)])
+
+    sd12, sd6 = log_sd(s12), log_sd(s6)
+    if not sd12 or not sd6:
+        return None
+
     return {
-        "ret12_1": p_recent / p_12m - 1.0,
-        "ret6_1": p_recent / p_6m - 1.0,
+        "ret12_1": ret12,
+        "ret6_1": ret6,
+        "ir12_1": math.log1p(ret12) / (sd12 * math.sqrt(LOOKBACK_12M)),
+        "ir6_1": math.log1p(ret6) / (sd6 * math.sqrt(LOOKBACK_6M)),
         "vol126": sd * (TRADING_DAYS_YEAR ** 0.5),
         "asOf": dates[-1],
         # 12 monthly closes (~1 per 21 trading days) for the table sparkline
@@ -284,8 +307,13 @@ def main():
 
     print("5/6 momentum ranks", flush=True)
     stats = {s: {**liq[s], **perf[s]} for s in top}
-    r12 = percentile_ranks([stats[s]["ret12_1"] for s in top])
-    r6 = percentile_ranks([stats[s]["ret6_1"] for s in top])
+    # Two ranking bases over the SAME universe -- only the inputs differ.
+    pct = {
+        "raw": (percentile_ranks([stats[s]["ret12_1"] for s in top]),
+                percentile_ranks([stats[s]["ret6_1"] for s in top])),
+        "ra": (percentile_ranks([stats[s]["ir12_1"] for s in top]),
+               percentile_ranks([stats[s]["ir6_1"] for s in top])),
+    }
 
     rows = []
     for i, sym in enumerate(top):
@@ -302,18 +330,24 @@ def main():
             "price": round(st["price"], 4),
             "ret12_1": st["ret12_1"],
             "ret6_1": st["ret6_1"],
-            "pct12_1": r12[i],
-            "pct6_1": r6[i],
-            "score": 0.5 * r12[i] + 0.5 * r6[i],
+            "ir12_1": st["ir12_1"],
+            "ir6_1": st["ir6_1"],
             "addv": st["addv"],
             "vol126": st["vol126"],
             "spark": st["spark"],
+            **{b: {"p12": a[i], "p6": c[i], "score": 0.5 * a[i] + 0.5 * c[i]}
+               for b, (a, c) in pct.items()},
         })
 
-    rows.sort(key=lambda r: r["score"], reverse=True)
-    for i, row in enumerate(rows, 1):
-        row["rank"] = i
-    display = rows[:DISPLAY_SIZE]
+    # Rank each basis independently across the whole universe.
+    for basis in pct:
+        for i, row in enumerate(sorted(rows, key=lambda r: r[basis]["score"], reverse=True), 1):
+            row[basis]["rank"] = i
+
+    # Ship the union of both top-100s, so either view is complete client-side.
+    best = lambda r: min(r["raw"]["rank"], r["ra"]["rank"])
+    display = sorted([r for r in rows if best(r) <= DISPLAY_SIZE], key=best)
+    print(f"  raw + risk-adjusted top {DISPLAY_SIZE} union = {len(display)} names", flush=True)
 
     print("6/6 chart series + write", flush=True)
     shown = [r["ticker"] for r in display]
@@ -324,7 +358,8 @@ def main():
         "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "dataAsOf": max(stats[s]["asOf"] for s in top),
         "universeSize": len(top),
-        "displaySize": len(display),
+        "displaySize": DISPLAY_SIZE,
+        "rowsShipped": len(display),
         "candidatesScreened": len(liq),
         "calendar": calendar,
         "series": series,
@@ -338,7 +373,6 @@ def main():
         },
         "rows": [
             {
-                "r": r["rank"],
                 "t": r["ticker"],
                 "n": r["name"],
                 "s": r["sector"],
@@ -348,12 +382,14 @@ def main():
                 "p": round(r["price"], 2),
                 "m12": round(r["ret12_1"], 6),
                 "m6": round(r["ret6_1"], 6),
-                "p12": round(r["pct12_1"], 3),
-                "p6": round(r["pct6_1"], 3),
-                "sc": round(r["score"], 3),
+                "i12": round(r["ir12_1"], 4),
+                "i6": round(r["ir6_1"], 4),
                 "dv": round(r["addv"]),
                 "v": round(r["vol126"], 6),
                 "sp": r["spark"],
+                **{b: {"r": r[b]["rank"], "sc": round(r[b]["score"], 3),
+                       "p12": round(r[b]["p12"], 3), "p6": round(r[b]["p6"], 3)}
+                   for b in pct},
             }
             for r in display
         ],
