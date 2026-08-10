@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Momentum 100 — Cross-Sectional Equity Momentum</title>
 <style>
 /* ── tokens ─────────────────────────────────────────────────────────────── */
@@ -228,7 +229,7 @@ td.wcell{width:46px; padding-left:12px}
 /* Every child is placed explicitly: the remove button has a definite row span,
    so auto-placement would otherwise resolve it into column 1 ahead of the rest. */
 .hold .id{grid-area:1/1/2/2; display:flex; align-items:baseline; gap:7px; min-width:0}
-.hold .id .tk{font-size:12px}
+.hold .id .tklink{font-size:12px; flex:none}
 .hold .id .nm{
   color:var(--ink-3); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
@@ -311,6 +312,134 @@ details.method summary:hover{color:var(--ink-2)}
   background:var(--panel); border:1px solid var(--line); border-radius:3px; padding:1px 4px;
 }
 .disclaim{margin-top:20px; font-size:10.5px; color:var(--ink-3); max-width:74ch}
+
+/* ── detail sheet ───────────────────────────────────────────────────────── */
+.tklink{
+  font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:.01em;
+  padding:2px 4px; margin:0 -4px; border-radius:3px; text-align:left;
+}
+.tklink:hover{color:var(--neon); background:var(--neon-glow)}
+tr.on .tklink{color:var(--neon)}
+
+.scrim{
+  position:fixed; inset:0; z-index:90; background:rgba(3,5,6,.72);
+  backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+  animation:fade .16s ease;
+}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.scrim[hidden]{display:none}
+
+.sheet{
+  position:fixed; z-index:91; background:var(--panel); border:1px solid var(--line);
+  display:flex; flex-direction:column; overflow:hidden;
+  left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(680px,calc(100vw - 32px)); max-height:min(860px,calc(100vh - 40px));
+  border-radius:8px; box-shadow:0 24px 70px rgba(0,0,0,.7), 0 0 0 1px rgba(0,245,160,.06);
+  animation:pop .18s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes pop{from{opacity:0; transform:translate(-50%,-48%) scale(.985)}}
+.sheet[hidden]{display:none}
+/* iPhone-first: a bottom sheet that owns the screen. */
+@media(max-width:640px){
+  .sheet{
+    left:0; top:auto; bottom:0; transform:none; width:100%;
+    max-height:96vh; height:96vh; border-radius:14px 14px 0 0; border-bottom:0;
+    animation:slideup .22s cubic-bezier(.2,.8,.3,1);
+  }
+  @keyframes slideup{from{transform:translateY(14px); opacity:.6}}
+}
+
+.sheet-hd{display:flex; align-items:flex-start; gap:12px; padding:14px 16px 12px; border-bottom:1px solid var(--line)}
+.sheet-hd .who{min-width:0; flex:1}
+.sheet-hd h2{margin:0; font-family:var(--mono); font-size:19px; font-weight:700; letter-spacing:-.01em}
+.sheet-hd .co2{
+  margin:2px 0 0; color:var(--ink-2); font-size:12px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap;
+}
+.sheet-hd .co2 .sec{margin-left:0}
+.sheet-hd .acts{display:flex; gap:8px; align-items:center; flex:none}
+.iconbtn{
+  width:30px; height:30px; border:1px solid var(--line); border-radius:50%;
+  display:grid; place-items:center; color:var(--ink-2); background:var(--panel-2);
+  transition:all .14s;
+}
+.iconbtn:hover{border-color:#2A3336; color:var(--ink)}
+.iconbtn.watch[aria-pressed="true"]{background:var(--neon); border-color:var(--neon); color:#04120C}
+
+/* the only four figures allowed above the chart */
+.sheet-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line)}
+.sheet-stats div{background:var(--panel); padding:10px 12px 11px; min-width:0}
+.sheet-stats .k{
+  font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); display:block; margin-bottom:4px; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.sheet-stats .v{
+  font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:15px;
+  font-weight:600; letter-spacing:-.01em;
+}
+
+.sheet-body{overflow-y:auto; overscroll-behavior:contain; flex:1}
+
+.chartblock{padding:14px 16px 6px}
+.readout{display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; min-height:34px; margin-bottom:8px}
+.ro{display:flex; align-items:baseline; gap:7px; min-width:0}
+.ro i{width:7px; height:7px; border-radius:2px; background:var(--c); flex:none; align-self:center}
+.ro .t{font-family:var(--mono); font-size:11.5px; font-weight:600}
+.ro .r{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:600}
+.ro .x{color:var(--ink-3); font-size:13px; padding:0 2px; line-height:1; align-self:center}
+.ro .x:hover{color:var(--down)}
+.ro-date{
+  margin-left:auto; font-family:var(--mono); font-size:10.5px; letter-spacing:.06em;
+  color:var(--ink-3); text-transform:uppercase; white-space:nowrap;
+}
+
+.canvas-wrap{position:relative; height:264px}
+@media(max-width:640px){
+  .canvas-wrap{height:230px}
+  .sheet-stats div{padding:9px 9px 10px}
+  .sheet-stats .v{font-size:13px}
+  .sheet-stats .k{font-size:8.5px; letter-spacing:.07em}
+}
+#chart{width:100%; height:100%; display:block; touch-action:none; cursor:crosshair}
+
+.chart-foot{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 16px 16px}
+.chart-foot .seg button{padding:5px 11px; font-size:10px}
+
+.cmp{position:relative}
+.cmp-btn{
+  display:inline-flex; align-items:center; gap:6px; padding:5px 11px;
+  border:1px solid var(--line); border-radius:var(--r); background:var(--panel-2);
+  font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-2); transition:all .14s;
+}
+.cmp-btn:hover:not(:disabled){border-color:var(--volt-dim); color:var(--volt)}
+.cmp-btn:disabled{opacity:.4; cursor:not-allowed}
+.cmp-pop{
+  position:absolute; bottom:calc(100% + 8px); left:0; z-index:5; width:260px;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:6px;
+  box-shadow:0 16px 40px rgba(0,0,0,.6); overflow:hidden;
+}
+.cmp-pop[hidden]{display:none}
+.cmp-pop input{
+  width:100%; background:var(--void); border:0; border-bottom:1px solid var(--line);
+  padding:9px 11px; color:var(--ink); font-size:12.5px;
+}
+.cmp-pop input:focus{outline:none; box-shadow:inset 0 -1px 0 var(--neon-dim)}
+.cmp-list{max-height:210px; overflow-y:auto; overscroll-behavior:contain}
+.cmp-list button{
+  display:flex; align-items:baseline; gap:8px; width:100%; padding:7px 11px; text-align:left;
+  border-bottom:1px solid var(--line-soft);
+}
+.cmp-list button:hover,.cmp-list button:focus-visible{background:var(--raise)}
+.cmp-list .tk{font-size:11.5px; flex:none}
+.cmp-list .nm{color:var(--ink-3); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cmp-list .rk2{margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--ink-3); flex:none}
+.cmp-none{padding:14px 11px; color:var(--ink-3); font-size:11.5px; text-align:center}
+
+.sheet-note{
+  padding:0 16px 16px; color:var(--ink-3); font-size:11px; line-height:1.55; max-width:62ch;
+}
 
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important; transition:none!important}
@@ -429,10 +558,12 @@ details.method summary:hover{color:var(--ink-2)}
         preferred shares, warrants, rights and units are excluded.
         <span id="m-screened"></span> names were screened; the <span id="m-univ"></span> with the
         highest 63-day average daily dollar volume — <code>mean(close × volume)</code> — form the
-        ranking universe.
+        ranking universe. Dollar volume measures traded notional, so it is the one figure here
+        taken from unadjusted prices.
       </div>
       <div>
         <h3>Momentum</h3>
+        Every return on this page is a total return, from dividend-adjusted closes.
         <code>12-1</code> is the return from 252 trading days ago to 21 trading days ago;
         <code>6-1</code> runs from 126 trading days ago to the same endpoint. Skipping the most
         recent month avoids short-term reversal. Each measure is percentile-ranked within the
@@ -447,19 +578,78 @@ details.method summary:hover{color:var(--ink-2)}
       </div>
       <div>
         <h3>Data</h3>
-        Split- and dividend-adjusted end-of-day prices from Financial Modeling Prep, retrieved
-        server-side and baked into this page. No credentials or raw API responses are present in
-        the client. Your watchlist is stored in this browser only.
+        End-of-day prices from Financial Modeling Prep, retrieved server-side and baked into this
+        page along with two years of adjusted history per displayed name. No credentials or raw
+        API responses are present in the client. Your watchlist is stored in this browser only.
       </div>
     </div>
   </details>
-  <p class="disclaim">
+  <p class="disclaim" id="disclaim">
     For research and educational use. Momentum ranks and inverse-volatility weights are
     mechanical outputs of the stated formulas — not investment advice, and not a recommendation
     to buy or sell any security. Past performance says nothing about future returns.
   </p>
 </footer>
 </div>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-tk">
+  <div class="sheet-hd">
+    <div class="who">
+      <h2 id="sheet-tk">—</h2>
+      <p class="co2" id="sheet-co">—</p>
+    </div>
+    <div class="acts">
+      <button class="iconbtn watch" id="sheet-watch" aria-pressed="false" aria-label="Add to watchlist">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button class="iconbtn" id="sheet-close" aria-label="Close detail view">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="sheet-stats">
+    <div><span class="k">Momentum rank</span><span class="v" id="d-rank">—</span></div>
+    <div><span class="k">12-1 return</span><span class="v" id="d-m12">—</span></div>
+    <div><span class="k">6-1 return</span><span class="v" id="d-m6">—</span></div>
+    <div><span class="k">126d vol</span><span class="v" id="d-vol">—</span></div>
+  </div>
+
+  <div class="sheet-body">
+    <div class="chartblock">
+      <div class="readout" id="readout"></div>
+      <div class="canvas-wrap"><canvas id="chart"></canvas></div>
+    </div>
+    <div class="chart-foot">
+      <div class="seg" role="group" aria-label="Chart timeframe">
+        <button data-tf="3M" aria-pressed="false">3M</button>
+        <button data-tf="6M" aria-pressed="false">6M</button>
+        <button data-tf="1Y" aria-pressed="true">1Y</button>
+        <button data-tf="2Y" aria-pressed="false">2Y</button>
+      </div>
+      <span style="flex:1"></span>
+      <div class="cmp">
+        <button class="cmp-btn" id="cmp-btn" aria-expanded="false" aria-haspopup="listbox">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Compare
+        </button>
+        <div class="cmp-pop" id="cmp-pop" hidden>
+          <input type="search" id="cmp-search" placeholder="Add a stock to the chart"
+                 autocomplete="off" aria-label="Search stocks to compare">
+          <div class="cmp-list" id="cmp-list" role="listbox"></div>
+        </div>
+      </div>
+    </div>
+    <p class="sheet-note">
+      Cumulative total return from dividend-adjusted closes, each line rebased to 0% at the
+      start of the selected window. Drag across the chart to read any date.
+    </p>
+  </div>
+</section>
 
 <script>
 const DATA = __DATA__;
@@ -580,7 +770,8 @@ function renderTable() {
         </button>
       </td>
       <td class="l rk">${r.r}</td>
-      <td class="l"><span class="tk">${esc(r.t)}</span></td>
+      <td class="l"><button class="tklink" data-open="${r.t}"
+          aria-label="Open ${esc(r.t)} detail">${esc(r.t)}</button></td>
       <td class="l"><span class="co" title="${esc(r.n)}">${esc(r.n)}</span></td>
       <td class="l"><span class="sec" style="--sc:${scolor(r.s)}"><i></i>${esc(r.s)}</span></td>
       <td class="num ${r.m12 >= 0 ? "up" : "dn"}">${sgn(r.m12)}</td>
@@ -639,7 +830,8 @@ function renderRail() {
     const card = holdings => holdings.map(r => `
       <div class="hold" style="--w:${(r.w * 100).toFixed(2)}%;--sc:${scolor(r.s)}">
         <span class="wbar"></span>
-        <div class="id"><span class="tk">${esc(r.t)}</span><span class="nm">${esc(r.n)}</span></div>
+        <div class="id"><button class="tklink" data-open="${r.t}"
+            aria-label="Open ${esc(r.t)} detail">${esc(r.t)}</button><span class="nm">${esc(r.n)}</span></div>
         <span class="wt" title="Inverse-volatility weight">${shown.get(r.t)}%</span>
         <button class="rm" data-toggle="${r.t}" aria-label="Remove ${esc(r.t)} from watchlist">×</button>
         <div class="meta" title="${esc(r.s)} · momentum rank #${r.r} · score ${r.sc.toFixed(1)} · 126-day realized volatility ${pct(r.v, 1)}">
@@ -700,7 +892,281 @@ function renderRail() {
     </div>`).join("");
 }
 
-const render = () => { renderTable(); renderRail(); };
+const render = () => { renderTable(); renderRail(); if (detail.open) renderSheet(); };
+
+/* ══ detail & compare ════════════════════════════════════════════════════ */
+const CAL = DATA.calendar;
+const SERIES = DATA.series;
+const LINE = ["#00F5A0", "#00D2FF", "#C08BFF", "#FFB86B"];
+const MAX_SERIES = 4;
+/* Trailing sessions per window; +1 point so the first bar is the 0% base. */
+const TF = { "3M": 63, "6M": 126, "1Y": 252, "2Y": CAL.length };
+
+const detail = { open: false, primary: null, compare: [], tf: "1Y", hover: null, restore: null };
+
+const retFmt = x => {
+  const p = x * 100;
+  return (p >= 0 ? "+" : "") + p.toFixed(Math.abs(p) >= 1000 ? 0 : 1) + "%";
+};
+
+function windowStart() {
+  return Math.max(0, CAL.length - 1 - TF[detail.tf]);
+}
+
+/** Series rebased to 0% at the first session it trades in the window. */
+function tracks() {
+  const s0 = windowStart();
+  return [detail.primary, ...detail.compare].filter(Boolean).map((t, i) => {
+    const q = SERIES[t];
+    let base = null, from = s0;
+    for (let k = s0; k < CAL.length; k++) {
+      if (q[k] != null) { base = q[k]; from = k; break; }
+    }
+    const pts = [];
+    if (base != null) {
+      for (let k = from; k < CAL.length; k++) {
+        if (q[k] != null) pts.push([k, q[k] / base - 1]);
+      }
+    }
+    return { t, color: LINE[i], pts, primary: i === 0 };
+  }).filter(s => s.pts.length > 1);
+}
+
+function niceStep(span, target) {
+  const raw = span / target;
+  if (!(raw > 0) || !isFinite(raw)) return 0.01;      // never return 0 - the tick loop steps by it
+  /* Nearest nice number, not the next one up: rounding up alone turns a 2.56
+     into a 5 and leaves the axis with half the gridlines it asked for. */
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag)
+    .reduce((a, c) => Math.abs(Math.log(c / raw)) < Math.abs(Math.log(a / raw)) ? c : a);
+  return step > 0 ? step : 0.01;
+}
+
+const canvas = document.getElementById("chart");
+const ctx = canvas.getContext("2d");
+
+function drawChart() {
+  const ts = tracks();
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!ts.length) return;
+
+  const padL = 4, padR = 48, padT = 12, padB = 22;
+  const s0 = windowStart(), s1 = CAL.length - 1;
+  const X = k => padL + ((k - s0) / Math.max(s1 - s0, 1)) * (w - padL - padR);
+
+  /* Domain hugs the data (0% always in view) and gridlines fall on nice values
+     inside it. Snapping the domain itself to the step would let a series dipping
+     a hair below zero drag the floor down a whole gridline. */
+  let lo = 0, hi = 0;
+  ts.forEach(s => s.pts.forEach(([, v]) => { if (v < lo) lo = v; if (v > hi) hi = v; }));
+  if (hi === lo) { hi += 0.01; lo -= 0.01; }
+  const pad = (hi - lo) * 0.06;
+  lo -= pad; hi += pad;
+  const step = niceStep(hi - lo, 4);
+  const Y = v => padT + (1 - (v - lo) / (hi - lo)) * (h - padT - padB);
+
+  /* gridlines + right-hand percent labels */
+  ctx.font = '10px ui-monospace,"SF Mono",Menlo,monospace';
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
+    if (Math.abs(v) < 1e-9) continue;                 // the 0% line is drawn on its own
+    const y = Math.round(Y(v)) + .5;
+    ctx.beginPath();
+    ctx.setLineDash([2, 4]);
+    ctx.strokeStyle = "rgba(154,168,165,.10)";
+    ctx.lineWidth = 1;
+    ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#66756F";
+    ctx.fillText((v > 0 ? "+" : "") + Math.round(v * 100) + "%", w - padR + 7, y);
+  }
+  /* the 0% baseline every line starts from */
+  const yz = Math.round(Y(0)) + .5;
+  ctx.beginPath();
+  ctx.strokeStyle = "rgba(154,168,165,.34)";
+  ctx.lineWidth = 1;
+  ctx.moveTo(padL, yz); ctx.lineTo(w - padR, yz); ctx.stroke();
+  ctx.fillStyle = "#9AA8A5";
+  ctx.fillText("0%", w - padR + 7, yz);
+
+  /* x-axis dates */
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#66756F";
+  const ticks = 4;
+  for (let i = 0; i < ticks; i++) {
+    const k = Math.round(s0 + ((s1 - s0) * (i + .5)) / ticks);
+    const d = new Date(CAL[k] + "T00:00:00Z");
+    ctx.fillText(d.toLocaleDateString(undefined, { month: "short", year: "2-digit", timeZone: "UTC" }),
+                 X(k), h - 6);
+  }
+
+  /* a soft fill only when a single line owns the chart */
+  if (ts.length === 1) {
+    const s = ts[0], g = ctx.createLinearGradient(0, padT, 0, h - padB);
+    const endUp = s.pts[s.pts.length - 1][1] >= 0;
+    g.addColorStop(0, endUp ? "rgba(0,245,160,.16)" : "rgba(255,84,112,.16)");
+    g.addColorStop(1, "rgba(0,245,160,0)");
+    ctx.beginPath();
+    s.pts.forEach(([k, v], i) => i ? ctx.lineTo(X(k), Y(v)) : ctx.moveTo(X(k), Y(v)));
+    ctx.lineTo(X(s.pts[s.pts.length - 1][0]), Y(0));
+    ctx.lineTo(X(s.pts[0][0]), Y(0));
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ts.forEach(s => {
+    ctx.beginPath();
+    s.pts.forEach(([k, v], i) => i ? ctx.lineTo(X(k), Y(v)) : ctx.moveTo(X(k), Y(v)));
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.primary ? 1.9 : 1.5;
+    ctx.globalAlpha = s.primary ? 1 : .92;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  /* crosshair */
+  if (detail.hover != null) {
+    const k = detail.hover, x = Math.round(X(k)) + .5;
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(236,242,239,.26)";
+    ctx.lineWidth = 1;
+    ctx.moveTo(x, padT); ctx.lineTo(x, h - padB); ctx.stroke();
+    ts.forEach(s => {
+      const p = valueAt(s, k);
+      if (p == null) return;
+      ctx.beginPath();
+      ctx.arc(x, Y(p), 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = s.color; ctx.fill();
+      ctx.strokeStyle = "#0E1113"; ctx.lineWidth = 1.6; ctx.stroke();
+    });
+  } else {
+    ts.forEach(s => {
+      const [k, v] = s.pts[s.pts.length - 1];
+      ctx.beginPath();
+      ctx.arc(X(k), Y(v), s.primary ? 3.2 : 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = s.color; ctx.fill();
+    });
+  }
+}
+
+/** Last observed value at or before session k (series may skip sessions). */
+function valueAt(s, k) {
+  let out = null;
+  for (const [i, v] of s.pts) { if (i > k) break; out = v; }
+  return out;
+}
+
+function renderReadout() {
+  const ts = tracks();
+  const k = detail.hover;
+  const el = document.getElementById("readout");
+  el.innerHTML = ts.map(s => {
+    const v = k != null ? valueAt(s, k) : s.pts[s.pts.length - 1][1];
+    return `<span class="ro" style="--c:${s.color}">
+      <i></i><span class="t">${esc(s.t)}</span>
+      <span class="r" style="color:${v >= 0 ? "var(--neon)" : "var(--down)"}">${v == null ? "—" : retFmt(v)}</span>
+      ${s.primary ? "" : `<button class="x" data-drop="${esc(s.t)}" aria-label="Remove ${esc(s.t)} from chart">×</button>`}
+    </span>`;
+  }).join("") +
+  `<span class="ro-date">${k != null
+      ? new Date(CAL[k] + "T00:00:00Z").toLocaleDateString(undefined,
+          { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
+      : detail.tf + " total return"}</span>`;
+}
+
+function renderSheet() {
+  const r = BY_TICKER.get(detail.primary);
+  if (!r) return;
+  document.getElementById("sheet-tk").textContent = r.t;
+  document.getElementById("sheet-co").innerHTML =
+    `${esc(r.n)} &middot; <span class="sec" style="--sc:${scolor(r.s)}"><i></i>${esc(r.s)}</span>`;
+  document.getElementById("d-rank").textContent = "#" + r.r;
+  const m12 = document.getElementById("d-m12"), m6 = document.getElementById("d-m6");
+  m12.textContent = retFmt(r.m12); m12.className = "v " + (r.m12 >= 0 ? "up" : "dn");
+  m6.textContent = retFmt(r.m6);   m6.className = "v " + (r.m6 >= 0 ? "up" : "dn");
+  document.getElementById("d-vol").textContent = pct(r.v, 1);
+
+  const wb = document.getElementById("sheet-watch");
+  const on = watch.has(r.t);
+  wb.setAttribute("aria-pressed", String(on));
+  wb.setAttribute("aria-label", `${on ? "Remove" : "Add"} ${r.t} ${on ? "from" : "to"} watchlist`);
+  wb.innerHTML = on
+    ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>'
+    : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
+  document.getElementById("cmp-btn").disabled = detail.compare.length >= MAX_SERIES - 1;
+  renderReadout();
+  drawChart();
+}
+
+function openDetail(t) {
+  if (!BY_TICKER.has(t) || !SERIES[t]) return;
+  if (detail.open && detail.primary !== t) detail.compare = [];
+  if (!detail.open) { detail.compare = []; detail.tf = "1Y"; syncTf(); }
+  detail.primary = t;
+  detail.hover = null;
+  detail.restore = document.activeElement;
+  detail.open = true;
+  document.getElementById("scrim").hidden = false;
+  document.getElementById("sheet").hidden = false;
+  document.body.style.overflow = "hidden";
+  renderSheet();
+  document.getElementById("sheet-close").focus();
+}
+
+function closeDetail() {
+  if (!detail.open) return;
+  detail.open = false;
+  detail.hover = null;
+  closeCmp();
+  document.getElementById("scrim").hidden = true;
+  document.getElementById("sheet").hidden = true;
+  document.body.style.overflow = "";
+  if (detail.restore && document.contains(detail.restore)) detail.restore.focus();
+}
+
+function syncTf() {
+  document.querySelectorAll("[data-tf]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.tf === detail.tf)));
+}
+
+/* ── compare picker ─────────────────────────────────────────────────────── */
+function renderCmpList() {
+  const q = document.getElementById("cmp-search").value.trim().toLowerCase();
+  const taken = new Set([detail.primary, ...detail.compare]);
+  const opts = ROWS.filter(r => !taken.has(r.t) && SERIES[r.t] &&
+    (!q || r.t.toLowerCase().includes(q) || r.n.toLowerCase().includes(q))).slice(0, 60);
+  document.getElementById("cmp-list").innerHTML = opts.length
+    ? opts.map(r => `<button role="option" data-add="${r.t}">
+        <span class="tk">${esc(r.t)}</span><span class="nm">${esc(r.n)}</span>
+        <span class="rk2">#${r.r}</span></button>`).join("")
+    : `<div class="cmp-none">No match in the top 100.</div>`;
+}
+
+function openCmp() {
+  document.getElementById("cmp-pop").hidden = false;
+  document.getElementById("cmp-btn").setAttribute("aria-expanded", "true");
+  const s = document.getElementById("cmp-search");
+  s.value = "";
+  renderCmpList();
+  s.focus();
+}
+function closeCmp() {
+  document.getElementById("cmp-pop").hidden = true;
+  document.getElementById("cmp-btn").setAttribute("aria-expanded", "false");
+}
 
 /* ── events ─────────────────────────────────────────────────────────────── */
 function toggle(t) {
@@ -710,6 +1176,36 @@ function toggle(t) {
 }
 
 document.addEventListener("click", e => {
+  const open = e.target.closest("[data-open]");
+  if (open) { openDetail(open.dataset.open); return; }
+
+  const add = e.target.closest("[data-add]");
+  if (add) {
+    if (detail.compare.length < MAX_SERIES - 1) detail.compare.push(add.dataset.add);
+    closeCmp();
+    renderSheet();
+    return;
+  }
+
+  const drop = e.target.closest("[data-drop]");
+  if (drop) {
+    detail.compare = detail.compare.filter(t => t !== drop.dataset.drop);
+    renderSheet();
+    return;
+  }
+
+  const tf = e.target.closest("[data-tf]");
+  if (tf) {
+    detail.tf = tf.dataset.tf;
+    detail.hover = null;
+    syncTf();
+    renderReadout();
+    drawChart();
+    return;
+  }
+
+  if (!e.target.closest(".cmp")) closeCmp();
+
   const btn = e.target.closest("[data-toggle]");
   if (btn) { toggle(btn.dataset.toggle); return; }
 
@@ -773,6 +1269,64 @@ document.getElementById("clearsearch").addEventListener("click", () => {
   search.value = ""; state.query = ""; document.getElementById("clearsearch").hidden = true;
   renderTable(); search.focus();
 });
+
+document.getElementById("sheet-close").addEventListener("click", closeDetail);
+document.getElementById("scrim").addEventListener("click", closeDetail);
+document.getElementById("sheet-watch").addEventListener("click", () => toggle(detail.primary));
+document.getElementById("cmp-btn").addEventListener("click", () => {
+  document.getElementById("cmp-pop").hidden ? openCmp() : closeCmp();
+});
+document.getElementById("cmp-search").addEventListener("input", renderCmpList);
+
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape" || !detail.open) return;
+  if (!document.getElementById("cmp-pop").hidden) { closeCmp(); document.getElementById("cmp-btn").focus(); }
+  else closeDetail();
+});
+
+/* Keep Tab inside the sheet while it owns the screen. */
+document.getElementById("sheet").addEventListener("keydown", e => {
+  if (e.key !== "Tab") return;
+  const f = [...document.getElementById("sheet").querySelectorAll(
+    'button:not([disabled]),input,[tabindex]:not([tabindex="-1"])')]
+    .filter(el => el.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+/* ── crosshair: one pointer path covers mouse, pen and touch ─────────────── */
+function pointerToSession(clientX) {
+  const box = canvas.getBoundingClientRect();
+  const padL = 4, padR = 48;
+  const s0 = windowStart(), s1 = CAL.length - 1;
+  const frac = (clientX - box.left - padL) / Math.max(box.width - padL - padR, 1);
+  return Math.max(s0, Math.min(s1, Math.round(s0 + frac * (s1 - s0))));
+}
+let tracking = false;
+canvas.addEventListener("pointerdown", e => {
+  tracking = true;
+  canvas.setPointerCapture(e.pointerId);
+  detail.hover = pointerToSession(e.clientX);
+  renderReadout(); drawChart();
+});
+canvas.addEventListener("pointermove", e => {
+  if (!tracking && e.pointerType === "touch") return;
+  if (!tracking && e.buttons === 0 && e.pointerType !== "mouse") return;
+  detail.hover = pointerToSession(e.clientX);
+  renderReadout(); drawChart();
+});
+const endTrack = () => {
+  tracking = false;
+  detail.hover = null;
+  renderReadout(); drawChart();
+};
+canvas.addEventListener("pointerup", endTrack);
+canvas.addEventListener("pointercancel", endTrack);
+canvas.addEventListener("pointerleave", () => { if (!tracking) endTrack(); });
+
+new ResizeObserver(() => { if (detail.open) drawChart(); }).observe(canvas);
 
 /* ── init ───────────────────────────────────────────────────────────────── */
 (function init() {

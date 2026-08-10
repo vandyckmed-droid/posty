@@ -4,11 +4,16 @@
 Pipeline
 --------
 1. Pull the U.S.-listed common-stock universe from the FMP company screener.
-2. Download ~16 months of daily EOD bars for every candidate.
-3. Compute 63-day average daily dollar volume (ADDV), keep the top 500.
-4. Compute 12-1 and 6-1 momentum, percentile-rank both, blend 50/50.
+2. Download ~16 months of daily EOD bars for every candidate and rank by 63-day
+   average daily dollar volume (ADDV). Traded notional is a raw-price quantity,
+   so ADDV alone uses unadjusted closes.
+3. Re-download the liquid head as 2-year dividend-adjusted (total-return) closes.
+   Every return, volatility and chart figure downstream uses these.
+4. Keep the top 500 eligible names; compute 12-1 and 6-1 momentum, percentile-rank
+   both, blend 50/50.
 5. Compute 126-day annualized realized volatility (used for inverse-vol weights).
-6. Emit data/momentum.json -- the only thing the artifact ever sees.
+6. Emit data/momentum.json -- the only thing the artifact ever sees -- including a
+   2-year aligned total-return series per displayed name for the detail charts.
 
 The API key is read from the API_KEY environment variable and never leaves this
 process: it is not written to the output file and not shipped to the browser.
@@ -101,9 +106,9 @@ def fetch_universe():
 
 # ---------------------------------------------------------------------- history
 
-def fetch_history(symbol, start, end):
+def fetch_history(symbol, start, end, endpoint="historical-price-eod/full"):
     try:
-        bars = api("historical-price-eod/full", symbol=symbol, **{"from": start, "to": end})
+        bars = api(endpoint, symbol=symbol, **{"from": start, "to": end})
     except Exception:
         return symbol, None
     if not isinstance(bars, list) or not bars:
@@ -122,17 +127,30 @@ def stdev(xs):
     return var ** 0.5
 
 
-def summarize(bars):
-    """Reduce a price series to the handful of statistics the artifact needs."""
+def liquidity(bars):
+    """63-day average daily dollar volume, from raw (unadjusted) traded prices."""
     closes = [b.get("close") for b in bars]
     volumes = [b.get("volume") or 0 for b in bars]
+    if any(c is None or c <= 0 for c in closes):
+        return None
+    if len(closes) < LOOKBACK_12M + SKIP_MONTH + 1:
+        return None
+    return {
+        "addv": sum(c * v for c, v in zip(closes[-ADDV_WINDOW:], volumes[-ADDV_WINDOW:])) / ADDV_WINDOW,
+        "price": closes[-1],
+        "asOf": bars[-1]["date"],
+    }
+
+
+def performance(bars):
+    """Total-return statistics from dividend-adjusted closes."""
+    closes = [b.get("adjClose") for b in bars]
+    dates = [b["date"] for b in bars]
     if any(c is None or c <= 0 for c in closes):
         return None
     n = len(closes)
     if n < LOOKBACK_12M + SKIP_MONTH + 1:
         return None
-
-    addv = sum(c * v for c, v in zip(closes[-ADDV_WINDOW:], volumes[-ADDV_WINDOW:])) / ADDV_WINDOW
 
     p_recent = closes[-(SKIP_MONTH + 1)]          # ~1 month ago
     p_12m = closes[-(LOOKBACK_12M + SKIP_MONTH + 1)]
@@ -144,14 +162,14 @@ def summarize(bars):
         return None
 
     return {
-        "addv": addv,
         "ret12_1": p_recent / p_12m - 1.0,
         "ret6_1": p_recent / p_6m - 1.0,
         "vol126": sd * (TRADING_DAYS_YEAR ** 0.5),
-        "price": closes[-1],
-        "asOf": bars[-1]["date"],
-        # 12 monthly closes (~1 per 21 trading days) for the sparkline
+        "asOf": dates[-1],
+        # 12 monthly closes (~1 per 21 trading days) for the table sparkline
         "spark": [round(closes[i], 4) for i in range(max(0, n - 253), n, 21)],
+        "dates": dates,
+        "closes": closes,
     }
 
 
@@ -176,33 +194,54 @@ def percentile_ranks(values):
 
 # ------------------------------------------------------------------------- main
 
+def build_series(top_symbols, perf):
+    """Align each displayed name onto one master trading calendar.
+
+    Values are integer ratios (x10000) against each series' own first
+    observation, so R(t) = q[t]/q[start] - 1 holds for any window the UI picks.
+    Missing sessions are null; a name that listed mid-window simply starts late.
+    """
+    calendar = sorted({d for s in top_symbols for d in perf[s]["dates"]})
+    index = {d: i for i, d in enumerate(calendar)}
+    series = {}
+    for sym in top_symbols:
+        p = perf[sym]
+        row = [None] * len(calendar)
+        base = p["closes"][0]
+        for d, c in zip(p["dates"], p["closes"]):
+            row[index[d]] = round(c / base * 10000)
+        series[sym] = row
+    return calendar, series
+
+
 def main():
     today = datetime.now(timezone.utc).date()
     start = (today - timedelta(days=560)).isoformat()
+    chart_start = (today - timedelta(days=760)).isoformat()   # ~2 years of sessions
     end = today.isoformat()
 
-    print("1/5 universe", flush=True)
+    print("1/6 universe", flush=True)
     universe = fetch_universe()
     meta = {r["symbol"]: r for r in universe}
     print(f"  {len(universe)} candidate common stocks", flush=True)
 
-    print("2/5 price history", flush=True)
+    print("2/6 traded volume history", flush=True)
     symbols = list(meta)
-    stats, t0 = {}, time.time()
+    liq, t0 = {}, time.time()
     with ThreadPoolExecutor(16) as pool:
         futures = [pool.submit(fetch_history, s, start, end) for s in symbols]
         for done, fut in enumerate(futures, 1):
             sym, bars = fut.result()
             if bars:
-                s = summarize(bars)
+                s = liquidity(bars)
                 if s:
-                    stats[sym] = s
+                    liq[sym] = s
             if done % 500 == 0:
                 print(f"  {done}/{len(symbols)}  ({time.time() - t0:.0f}s)", flush=True)
-    print(f"  {len(stats)} symbols with a full history", flush=True)
+    print(f"  {len(liq)} symbols with a full history", flush=True)
 
-    print("3/5 liquidity screen", flush=True)
-    ranked = sorted(stats, key=lambda s: stats[s]["addv"], reverse=True)
+    print("3/6 liquidity screen", flush=True)
+    ranked = sorted(liq, key=lambda s: liq[s]["addv"], reverse=True)
 
     # Verify the liquid head really is non-ADR common equity before cutting to 500.
     head = ranked[:PROFILE_CHECK]
@@ -223,11 +262,24 @@ def main():
         if prof and (prof.get("isAdr") or prof.get("isEtf") or prof.get("isFund")):
             continue
         eligible.append(sym)
-    top = eligible[:UNIVERSE_SIZE]
-    print(f"  {len(head) - len(eligible)} non-common-equity names dropped; "
-          f"universe = {len(top)}", flush=True)
+    print(f"  {len(head) - len(eligible)} non-common-equity names dropped", flush=True)
 
-    print("4/5 momentum ranks", flush=True)
+    print("4/6 total-return history", flush=True)
+    perf = {}
+    with ThreadPoolExecutor(16) as pool:
+        futures = [pool.submit(fetch_history, s, chart_start, end,
+                               "historical-price-eod/dividend-adjusted") for s in eligible]
+        for fut in futures:
+            sym, bars = fut.result()
+            if bars:
+                p = performance(bars)
+                if p:
+                    perf[sym] = p
+    top = [s for s in eligible if s in perf][:UNIVERSE_SIZE]
+    print(f"  {len(perf)}/{len(eligible)} adjusted series; universe = {len(top)}", flush=True)
+
+    print("5/6 momentum ranks", flush=True)
+    stats = {s: {**liq[s], **perf[s]} for s in top}
     r12 = percentile_ranks([stats[s]["ret12_1"] for s in top])
     r6 = percentile_ranks([stats[s]["ret6_1"] for s in top])
 
@@ -259,13 +311,19 @@ def main():
         row["rank"] = i
     display = rows[:DISPLAY_SIZE]
 
-    print("5/5 write", flush=True)
+    print("6/6 chart series + write", flush=True)
+    shown = [r["ticker"] for r in display]
+    calendar, series = build_series(shown, perf)
+    print(f"  {len(calendar)} sessions x {len(series)} names", flush=True)
+
     payload = {
         "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "dataAsOf": max(stats[s]["asOf"] for s in top),
         "universeSize": len(top),
         "displaySize": len(display),
-        "candidatesScreened": len(stats),
+        "candidatesScreened": len(liq),
+        "calendar": calendar,
+        "series": series,
         "params": {
             "addvWindow": ADDV_WINDOW,
             "volWindow": VOL_WINDOW,
