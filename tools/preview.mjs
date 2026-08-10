@@ -70,10 +70,13 @@ for (const scheme of ['light', 'dark']) {
   console.log(scheme, 'detail opens:', detailOpen);
 
   // interaction sweep
-  await p.locator('#f-cash').click();          // show cash-like
+  await p.locator('#f-stk').click();           // include non-stock funds
+  await p.waitForTimeout(150);
+  const allAssets = await p.locator('.tkr').first().textContent();
+  const allCount = await p.evaluate(() => document.getElementById('ro-shown').textContent);
+  await p.locator('#f-stk').click();           // back to stocks only
   await p.waitForTimeout(120);
-  const withCash = await p.locator('.tkr').first().textContent();
-  await p.locator('#f-cash').click();          // hide again
+  const withCash = allAssets + '/' + allCount;
   await p.locator('[data-liq="500000000"]').click();
   await p.waitForTimeout(120);
   const liqTop = await p.locator('.tkr').first().textContent();
@@ -88,7 +91,7 @@ for (const scheme of ['light', 'dark']) {
   await p.locator('#q').fill('');
   await p.waitForTimeout(120);
 
-  console.log(scheme, `cashOn=${withCash} liq500M=${liqTop} byRaw=${rawTop} search"semiconductor"=${searchN} rows`);
+  console.log(scheme, `allAssets=${withCash} liq500M=${liqTop} byRaw=${rawTop} search"semiconductor"=${searchN} rows`);
 
   if (scheme === 'light') {
     // grouping + effective-bets checks against independently computed values

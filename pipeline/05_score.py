@@ -34,20 +34,32 @@ LEV = re.compile('|'.join([MULT, ULTRASHORT, ULTRA, r'\bultrapro\b', r'\bleverag
 SHORT = re.compile('|'.join([r'\binverse\b', r'\bbear\b', ULTRASHORT, DIR_SHORT,
                              r'(?<![a-z0-9])-[1-9](?:\.\d)?x\b']), re.I)
 
-def profile(sym):
-    """Cost, size and character from stage 4. Absent fields simply do not render."""
-    path = C.DATA / 'profile' / f'{sym}.json'
+# Buckets that are definitively not a basket of shares. "Real Estate (Listed/REITs)"
+# deliberately absent: a REIT fund holds listed equities and belongs with the stocks.
+NON_EQUITY = ('fixed income', 'fixed-income', 'bond', 'commodit', 'gold', 'alternativ',
+              'multi-asset', 'multi-sector', 'cash', 'high yield', 'loans', 'municipal',
+              'government', 'investment grade', 'asset allocation', 'real assets')
+# Sector labels the vendor uses for anything that is not an operating company.
+NOT_A_SECTOR = ('cash & others', 'other', 'others', 'cash', 'n/a', '')
+
+
+def _load(sym, suffix=''):
+    path = C.DATA / 'profile' / f'{sym}{suffix}.json'
     if not path.exists():
-        return {}
+        return None
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text() or 'null')
     except (ValueError, OSError):
-        return {}
+        return None
+    return data or None
+
+
+def profile(sym):
+    """Cost, size and composition from stage 4. Absent fields simply do not render."""
+    data = _load(sym)
     if not data:
         return {}
     p = data[0]
-    sectors = p.get('sectorsList') or []
-    top = max(sectors, key=lambda x: x.get('exposure') or 0) if sectors else None
     out = {}
     if p.get('expenseRatio') is not None:
         out['er'] = round(float(p['expenseRatio']), 3)
@@ -58,8 +70,39 @@ def profile(sym):
     for key, field in (('iss', 'etfCompany'), ('ac', 'assetClass')):
         if p.get(field):
             out[key] = str(p[field])
-    if top and (top.get('exposure') or 0) > 0:
-        out['sec'] = [str(top.get('industry')), round(float(top['exposure']), 1)]
+
+    sectors = [(str(x.get('industry') or ''), float(x.get('exposure') or 0))
+               for x in (p.get('sectorsList') or [])]
+    sectors = [(nm, ex) for nm, ex in sectors if ex > 0]
+    sectors.sort(key=lambda x: -x[1])
+    if sectors:
+        out['sec'] = [[nm, round(ex, 1)] for nm, ex in sectors[:6]]
+
+    countries = []
+    for x in (_load(sym, '.country') or []):
+        pctstr = str(x.get('weightPercentage') or '').rstrip('%')
+        try:
+            pct = float(pctstr)
+        except ValueError:
+            continue
+        if pct > 0:
+            countries.append((str(x.get('country') or ''), pct))
+    countries.sort(key=lambda x: -x[1])
+    if countries:
+        out['cty'] = [[nm, round(pct, 1)] for nm, pct in countries[:4]]
+
+    # Is this a basket of shares? The sector mix is the reliable signal -- the vendor
+    # labels SPDR Gold Shares "Equity", but reports it as 100% Cash & Others. Where
+    # sector data is missing entirely, fall back to the asset class alone.
+    ac = (out.get('ac') or '').lower()
+    if any(k in ac for k in NON_EQUITY):
+        out['stk'] = False
+    elif sectors:
+        total = sum(ex for _, ex in sectors)
+        real = sum(ex for nm, ex in sectors if nm.strip().lower() not in NOT_A_SECTOR)
+        out['stk'] = bool(total) and (real / total) >= 0.60
+    else:
+        out['stk'] = any(k in ac for k in ('equity', 'stock', 'growth', 'real estate'))
     return out
 
 

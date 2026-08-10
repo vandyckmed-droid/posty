@@ -47,7 +47,7 @@ if missing:
 ids = set(re.findall(r'id="([\w-]+)"', html))
 for want in ('asof', 'uni', 'total', 'medline', 'list', 'more', 'empty', 'grpline',
              'q', 'f-cash', 'f-lev', 'f-inv', 'cashn', 'rfn', 'data',
-             'ro-shown', 'ro-grp', 'ro-bets', 'pc1n', 'rescut', 'ro-grp-l'):
+             'ro-shown', 'ro-grp', 'ro-bets', 'pc1n', 'rescut', 'ro-grp-l', 'f-stk'):
     if want not in ids:
         errs.append('missing id: ' + want)
 

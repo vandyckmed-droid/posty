@@ -49,7 +49,16 @@ that clear one baseline liquidity bar:
 
 Delisted tickers that still quote a stale last price drop out automatically: they
 return no price history. As of the last build, 10,404 listed ETFs → 6,284 US-listed
-→ 2,092 pre-screened → **1,058 ranked**.
+→ 2,092 pre-screened → **1,058 ranked**, of which **594 shown by default** — stock
+funds, excluding leveraged and inverse products. Every filter is one tap away.
+
+Whether a fund holds shares is decided from its **sector mix**, not its label, because
+the labels are unreliable: the vendor files SPDR Gold Shares under "Equity" while
+reporting it as 100% cash-and-other. A fund counts as stocks when ≥60% of it sits in
+real operating sectors, with a short list of asset classes (bonds, commodities,
+alternatives, multi-asset) excluded outright. REITs are deliberately kept — they hold
+listed companies. Spot-checked against GLD, TLT, SGOV, IBIT, USO and DBC (all
+correctly excluded) and SOXX, VLUE, XBI, EWT, VNQ, EEM, DIVB, IYZ (all kept).
 
 ## Grouping and diversification
 
@@ -77,9 +86,12 @@ the ranking cannot see fees at all. That gap is often the only thing separating 
 funds making the identical bet: SOXQ charges 0.19% against SOXX at 0.33% and SMH at
 0.35%, for semiconductor exposure correlated 0.98–1.00.
 
-Per-stock holdings sit behind a higher API tier and are **not** included. What stage 4
-does provide — annual fee, fund size, holdings count, issuer, largest sector — covers
-the decision grouping sets up, and is shown in each row's detail.
+**Per-stock holdings are not available.** Every FMP holdings endpoint returns 402 on
+this plan (`etf/holdings`, `funds/disclosure`, `funds/disclosure-holders-latest`).
+What stage 4 does provide is shown in each row's detail instead: annual fee, fund
+size, holdings count, asset class, issuer, full **sector mix** and **country mix**.
+The country figures were sanity-checked against a third-party terminal — CIBR reads
+89% United States in both.
 
 The readout reports `N² / ΣΣ|r_ij|` over the top rows shown — the number of unrelated
 holdings carrying the same risk as that basket. Absolute values matter: an inverse

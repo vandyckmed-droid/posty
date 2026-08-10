@@ -292,6 +292,27 @@
   .detail dd { margin: 0; text-align: right; font-weight: 550; }
   .detail .note { margin: 8px 0 0; font-size: 11px; color: var(--faint); line-height: 1.4; }
 
+  .mix { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line-soft); }
+  .mix-h {
+    font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--faint); margin-bottom: 5px;
+  }
+  .mix-row {
+    display: grid; grid-template-columns: minmax(0,84px) 1fr auto;
+    align-items: center; gap: 8px; margin-bottom: 3px;
+  }
+  .mix-n {
+    font-size: 11px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mix-bar { height: 5px; background: var(--line-soft); border-radius: 3px; overflow: hidden; }
+  .mix-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .mix-v {
+    font-size: 10.5px; color: var(--muted); min-width: 40px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .mix-p { margin: 0; font-size: 11.5px; color: var(--muted); }
+
   .more {
     display: block; width: 100%; margin: 12px 0 0; font: inherit; font-size: 13.5px; font-weight: 600;
     padding: 12px; border-radius: 10px; cursor: pointer;
@@ -375,11 +396,13 @@
       <button class="chip" data-liq="500000000" aria-pressed="false">$500M+</button>
     </div>
 
-    <div class="rail" role="group" aria-label="Filters">
-      <span class="rail-lbl">Hide</span>
+    <div class="rail" role="group" aria-label="What to include">
+      <span class="rail-lbl">Only</span>
+      <button class="chip" id="f-stk" aria-pressed="true">Stocks</button>
+      <span class="rail-lbl" style="padding-left:6px">Hide</span>
+      <button class="chip" id="f-lev" aria-pressed="true">Leveraged</button>
+      <button class="chip" id="f-inv" aria-pressed="true">Inverse</button>
       <button class="chip" id="f-cash" aria-pressed="false">Cash-like</button>
-      <button class="chip" id="f-lev" aria-pressed="false">Leveraged</button>
-      <button class="chip" id="f-inv" aria-pressed="false">Inverse</button>
     </div>
 
     <div class="rail" role="group" aria-label="Fold similar funds together">
@@ -437,6 +460,13 @@
       </ul>
       <p>Delisted tickers that still quote a stale last price are dropped automatically —
          they return no price history.</p>
+      <p>By default the list then shows <b>stock funds only</b>, with leveraged and inverse
+         products hidden. Whether a fund holds shares is decided from its <em>sector mix</em>
+         rather than its label, because the labels are unreliable: the vendor files SPDR Gold
+         Shares under "Equity", but reports it as 100% cash and other — so it is correctly
+         excluded, while a REIT fund, which really does hold listed companies, is kept. A fund
+         counts as stocks when at least 60% of it sits in real operating sectors. Every filter is
+         a tap away if you want the full universe back.</p>
 
       <h2>Score</h2>
       <p>Daily log returns <code>r<sub>t</sub> = ln(P<sub>t</sub> / P<sub>t−1</sub>)</code> on
@@ -552,17 +582,28 @@
          really choosing between. The bets figure tells you that choosing more rows from the top will
          not, by itself, diversify you.</p>
 
+      <h2>What a fund holds</h2>
+      <p>Per-stock holdings are <b>not available</b> here. That data sits behind a higher tier of
+         the price provider's API, and rather than show a stale or partial list this screen answers
+         the composition question at the level the data supports: each row's detail carries the
+         fund's <b>sector mix</b>, the <b>countries</b> it invests in, how many positions it holds,
+         its asset class and its issuer.</p>
+      <p>For most decisions that is the substance of it. A cybersecurity fund reading 95% technology
+         and 89% United States, across 30 positions, is well described — the individual names matter
+         less than the shape. Where they do matter, the fund's own page is the authority.</p>
+
       <h2>Reading a row</h2>
       <p>The bar under each ticker places the score on a shared diverging scale centred on zero,
          so relative standing is visible without reading the number. Scores beyond the scale are
          clamped to its ends. Tap any row for the full window detail.</p>
 
       <div class="caveat">
-        <b>Snapshot, not a live feed.</b> Every figure is fixed at the close shown in the header and
-        will not update. Leveraged and inverse products are ranked alongside everything else because
-        they clear the same liquidity bar — their daily-reset compounding makes a multi-month score
-        mean something different, so the Hide row lets you drop them. Momentum rank is a starting
-        screen, not a recommendation, and says nothing about what happens next.
+        <b>Snapshot, not a live feed.</b> Every figure is fixed at the close shown in the header
+        and will not update. Leveraged and inverse products are hidden by default: they clear the
+        same liquidity bar, but their daily-reset compounding makes a multi-month score mean
+        something different, and they tend to carry both the highest fees and the highest
+        volatility in the universe. Momentum rank is a starting screen, not a recommendation, and
+        says nothing about what happens next.
       </div>
     </div>
   </details>
@@ -712,8 +753,8 @@
   // The headline score nets out the T-bill return, which is what stops cash proxies
   // from dominating -- so unlike the raw ratio, cash-like funds need no hiding.
   var HEAD = 'xs';
-  var state = { win: '6', q: '', liq: 5000000, hideCash: false, hideLev: false,
-                hideInv: false, sort: HEAD, grp: 'bet', limit: PAGE };
+  var state = { win: '6', q: '', liq: 5000000, stocksOnly: true, hideCash: false,
+                hideLev: true, hideInv: true, sort: HEAD, grp: 'bet', limit: PAGE };
 
   var $ = function (id) { return document.getElementById(id); };
   var list = $('list'), moreBtn = $('more'), emptyEl = $('empty');
@@ -754,6 +795,7 @@
     var q = state.q.trim().toLowerCase();
     var out = ROWS.filter(function (r) {
       if (r.dv < state.liq) return false;
+      if (state.stocksOnly && !r.stk) return false;
       if (state.hideCash && M(r).cash) return false;
       if (state.hideLev && r.lev) return false;
       if (state.hideInv && r.inv) return false;
@@ -777,6 +819,28 @@
     return '<div class="meter"><i class="' + (sc >= 0 ? 'up' : 'dn') + '" style="left:' +
       left.toFixed(2) + '%;width:' + Math.max(width, 0.6).toFixed(2) + '%"></i>' +
       '<u style="left:' + zero.toFixed(2) + '%"></u></div>';
+  }
+
+  // Per-stock holdings are not available from the data provider on this plan, so the
+  // composition question is answered at the level that is: what kinds of company, and
+  // where. Bars are shares of the fund, largest first.
+  function mixHTML(r) {
+    var out = '';
+    if (r.sec) {
+      out += '<div class="mix"><div class="mix-h">Sector mix</div>' +
+        r.sec.map(function (x) {
+          return '<div class="mix-row"><span class="mix-n">' + esc(x[0]) + '</span>' +
+            '<span class="mix-bar"><i style="width:' + Math.max(1, Math.min(100, x[1])).toFixed(1) + '%"></i></span>' +
+            '<span class="mix-v mono">' + x[1].toFixed(1) + '%</span></div>';
+        }).join('') + '</div>';
+    }
+    if (r.cty && r.cty.length) {
+      out += '<div class="mix"><div class="mix-h">Where</div><p class="mix-p">' +
+        r.cty.map(function (x) {
+          return esc(x[0]) + ' <span class="mono">' + x[1].toFixed(0) + '%</span>';
+        }).join(' · ') + '</p></div>';
+    }
+    return out;
   }
 
   function memberHTML(m) {
@@ -848,15 +912,14 @@
           '<dt>Fund size</dt><dd class="mono">' + money(r.aum) + '</dd>') +
         (r.hc == null ? '' :
           '<dt>Holdings</dt><dd class="mono">' + r.hc.toLocaleString() + '</dd>') +
-        (r.sec == null ? '' :
-          '<dt>Largest sector</dt><dd>' + esc(r.sec[0]) + ' <span class="hint mono">' +
-            r.sec[1].toFixed(0) + '%</span></dd>') +
+        (r.ac == null ? '' : '<dt>Asset class</dt><dd>' + esc(r.ac) + '</dd>') +
         (r.iss == null ? '' : '<dt>Issuer</dt><dd>' + esc(r.iss) + '</dd>') +
         '<dt>Rank on ' + cur.label + '</dt><dd class="mono">#' + w.rk + ' of ' + META.ranked.toLocaleString() + '</dd>' +
         '<dt>Rank on ' + oLabel + ' <span class="hint">score ' + ow[HEAD].toFixed(2) + '</span></dt>' +
           '<dd class="mono">#' + ow.rk + ' <span class="drift ' + (drift > 0 ? 'dn' : drift < 0 ? 'up' : '') + '">' +
           (drift === 0 ? '=' : (drift > 0 ? '▼' : '▲') + Math.abs(drift)) + '</span></dd>' +
-      '</dl>' + (r.n.length > 34 ? '<p class="note">' + esc(r.n) + '</p>' : '') + '</div>' +
+      '</dl>' + mixHTML(r) +
+      (r.n.length > 34 ? '<p class="note">' + esc(r.n) + '</p>' : '') + '</div>' +
       (r.grp || '') +
     '</li>';
   }
@@ -957,6 +1020,7 @@
       reset();
     });
   }
+  toggle($('f-stk'), 'stocksOnly');
   toggle($('f-cash'), 'hideCash');
   toggle($('f-lev'), 'hideLev');
   toggle($('f-inv'), 'hideInv');
