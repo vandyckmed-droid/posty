@@ -1,12 +1,16 @@
 # posty
 
-A risk-adjusted momentum screen over every liquid US-listed ETF, built for a phone
-screen. It ranks funds by excess return per unit of volatility, folds near-identical funds
-together so the list shows *bets* rather than tickers, and reports how many
-independent bets the top of the list actually contains.
+Two risk-adjusted momentum screens over the liquid US market, built for a phone
+screen. Each output is a single self-contained HTML page with all data embedded — no
+network access at runtime, no backend.
 
-The output is a single self-contained HTML page with all data embedded — no network
-access at runtime, no backend.
+1. **[The ETF screen](#the-score)** — every liquid US-listed ETF, ranked by excess
+   return per unit of volatility, with near-identical funds folded together so the
+   list shows *bets* rather than tickers.
+2. **[Stock groups](#stock-groups)** — the same ranking applied to baskets we
+   assemble ourselves: a written taxonomy of the liquid US tape, tested against
+   returns, held at equal weight. Built because the first screen kept proving that a
+   vendor's fund lineup duplicates itself.
 
 ## The score
 
@@ -212,6 +216,78 @@ skipped final month, drawn shaded so it reads as context. Each fund also gets it
 `near`est relative — the one other fund in the universe that moves most like it once
 the market factor is removed — which surfaces near-duplicate exposures without adding
 a control.
+
+## Stock groups
+
+The ETF screen kept returning the same verdict: a vendor's fund lineup duplicates
+itself, and the top of the ranking is one or two trades wearing ten tickers. This
+build answers the obvious follow-up — assemble the baskets ourselves.
+
+```bash
+make groups          # universe -> history -> screen -> group -> score -> page
+make groups-page     # rebuild from data already downloaded
+```
+
+### The taxonomy
+
+`universe/stock_themes.txt` holds 136 themes over ~2,200 tickers, written by hand
+from how the US tape is actually organised rather than from industry codes. Several
+themes deliberately cross sector lines no classification system can: **AI power**
+spans industrials, utilities and energy; **neoclouds** mixes former bitcoin miners
+with cloud startups; **crypto-linked** spans exchanges, treasuries and hardware.
+
+That file is a *hypothesis*. Stage 4 tests it and can only remove or divide:
+
+- **Members that do not move with their group are dropped** — under +0.05 market-
+  adjusted correlation with the rest, a name is being carried by the label. 81 went.
+- **A theme is split only when the split is real.** Any finer partition raises
+  within-group correlation by arithmetic alone, so "the halves score higher" proves
+  nothing. The members are reshuffled into buckets of identical sizes 1,500 times and
+  the cut is kept only above the 95th percentile of that distribution. Splitting
+  recurses until nothing survives. 61 cuts passed; gas E&Ps separate from oil E&Ps,
+  rails from truckers, health insurers from hospitals.
+- **Groups under +0.15 are flagged, not hidden.** The most fashionable theme in the
+  market fails: **GLP-1/obesity scores +0.10** — LLY, NVO, VKTX and HIMS share a
+  story, not a price. "Mag 7" behaves the same way once the market is removed.
+
+Result: **200 groups over 1,734 of 1,821 liquid names (95%)**, pair-weighted cohesion
+**+0.365**, median group size 6. Measured against the vendor's own industry labels on
+the same names, the written taxonomy scores **+0.42 to their +0.31**, and beats blind
+correlation clustering given the same number of groups (+0.42 vs +0.36) — knowledge
+wins when the group count is held equal. The edge survives out of window: on the 21
+skipped sessions, which enter no calculation anywhere, it is +0.46 against +0.33.
+
+### Equal weight, and what it does not fix
+
+Each group is held at **equal weight**, which is the point: a sector ETF is mostly a
+bet on its two largest members, so weighting evenly makes the group a statement about
+the theme instead. Scoring is the same as the ETF screen — annualised return over
+annualised volatility on 12−1 and 6−1, blended 50/50.
+
+The top ten groups still contain only **3.3 independent bets**. Better baskets make
+each row honest about what it holds; they do not make a momentum ranking diversified.
+
+### Universe, and a vendor trap
+
+Every US-listed common share above a **$25M median daily dollar volume** — 1,821
+names. The symbol list comes from `stock-list`, **not** `company-screener`: that
+endpoint silently truncates, returning about 3,000 NYSE rows and omitting Realty
+Income, Cboe, Vornado, Federal Realty, Camden and National Storage with no error. A
+universe built on it was missing **238 liquid names, 13% of the market**, invisibly.
+The master file mixes funds in with companies, so ETFs are subtracted using
+`etf-list`, and commodity trusts and closed-end funds by name — narrowly, since
+matching "Trust" alone would throw out most of the REIT market.
+
+| stage | does |
+| --- | --- |
+| `01_universe.py` | symbol master − funds → plain US tickers → batch-quote prefilter |
+| `02_history.py` | split- and dividend-adjusted daily bars, resumable |
+| `03_screen.py` | the liquidity screen; the shared return matrix |
+| `04_group.py` | taxonomy → drop, split, test; cohesion, bets, closest relative |
+| `05_score.py` | equal-weight group portfolios over both windows, member scores |
+| `06_page.py` | inject into `web/stock-groups.html`, validate |
+
+Data lands in `./data-stocks`. Requires `scipy` alongside `numpy`.
 
 ## Publishing
 
