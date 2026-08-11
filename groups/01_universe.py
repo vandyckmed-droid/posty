@@ -11,7 +11,6 @@ Exchange is not one of its fields, so the shape of the ticker does the first cut
 a plain alphabetic symbol is a US common line, a dotted or dashed one is a foreign
 or preferred listing -- and a batch quote does the second.
 """
-import json
 import re
 
 import cfg as C

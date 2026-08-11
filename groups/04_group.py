@@ -23,7 +23,6 @@ together. This stage tests it, in three steps:
 Nothing here is fitted to returns in a way that could flatter the result -- the
 membership was written first, and every step below can only remove or divide.
 """
-import json
 
 import numpy as np
 from scipy.cluster.hierarchy import fcluster, linkage
@@ -35,7 +34,6 @@ idx = C.load('returns_index.json')
 syms = idx['syms']
 I = {s: i for i, s in enumerate(syms)}
 R = np.load(C.DATA / 'returns.npy')
-names = {r['symbol']: r for r in C.load('candidates.json')}
 dv = {r['symbol']: r['dv'] for r in C.load('liquid.json')}
 
 RAW, ADJ, pc1 = C.market_adjusted(R)

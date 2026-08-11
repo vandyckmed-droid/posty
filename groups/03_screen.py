@@ -58,7 +58,8 @@ for sym, rows in bars.items():
 
 keep = {r['symbol'] for r in liquid}
 syms, R = C.returns({s: b for s, b in bars.items() if s in keep}, window)
-liquid = [r for r in liquid if r['symbol'] in set(syms)]
+priced = set(syms)
+liquid = [r for r in liquid if r['symbol'] in priced]
 liquid.sort(key=lambda r: -r['dv'])
 
 C.save('liquid.json', liquid)
