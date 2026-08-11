@@ -5,7 +5,6 @@ Defaults to the semiconductor cluster. Reports pairwise correlation, market-adju
 residual correlation, effective independent bets, and a paired bootstrap on whether
 the score ordering inside the cluster is real.
 """
-import json
 import math
 import os
 import sys

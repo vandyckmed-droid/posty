@@ -14,7 +14,6 @@ Inside each window:
 One universe serves both: every fund carries enough history for the longer window,
 so no fund appears in one ranking and vanishes from the other.
 """
-import json
 import math
 import re
 import statistics as st

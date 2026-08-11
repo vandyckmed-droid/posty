@@ -1,0 +1,283 @@
+<title>Stock groups</title>
+<style>
+:root{
+  --bg:#fbfaf8; --card:#ffffff; --ink:#16191d; --dim:#6a7280; --faint:#9aa2ad;
+  --line:#e6e3dd; --chip:#f1efe9; --pos:#1a7f56; --neg:#b23b2e; --accent:#2f5ea8;
+  --shade:#eceae4; --warn:#8a6d1f; --warnbg:#f7f0da;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121417; --card:#191c20; --ink:#eceef1; --dim:#9aa2ad; --faint:#6c757f;
+    --line:#282c32; --chip:#22262b; --pos:#4cc38a; --neg:#f0776a; --accent:#7aa5e8;
+    --shade:#22262b; --warn:#d8b756; --warnbg:#2a2618;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121417; --card:#191c20; --ink:#eceef1; --dim:#9aa2ad; --faint:#6c757f;
+  --line:#282c32; --chip:#22262b; --pos:#4cc38a; --neg:#f0776a; --accent:#7aa5e8;
+  --shade:#22262b; --warn:#d8b756; --warnbg:#2a2618;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.45 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:18px 14px 56px}
+h1{font-size:21px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{margin:0 0 10px;color:var(--dim);font-size:13px}
+.stamp{color:var(--faint);font-size:11.5px;margin-bottom:14px}
+.readout{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:12px 13px;margin-bottom:12px;font-size:13px;color:var(--dim)}
+.readout b{color:var(--ink);font-variant-numeric:tabular-nums}
+.readout .rl{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
+#q{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--ink);font-size:15px;margin-bottom:12px}
+#q::placeholder{color:var(--faint)}
+.row{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  margin-bottom:8px;overflow:hidden}
+.row-hd{display:grid;grid-template-columns:26px 1fr auto;gap:9px;align-items:center;
+  padding:11px 12px;cursor:pointer}
+.row-hd:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:11px}
+#q:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.rk{color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
+.nm{min-width:0}
+.tkr{font-weight:600;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.meta{color:var(--dim);font-size:11.5px;margin-top:2px;display:flex;
+  flex-wrap:wrap;gap:6px;align-items:center}
+.chip{background:var(--chip);border-radius:5px;padding:1px 5px;font-size:10.5px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip.weak{background:var(--warnbg);color:var(--warn)}
+.right{display:flex;align-items:center;gap:9px}
+.sc{font-variant-numeric:tabular-nums;font-weight:650;font-size:16px;text-align:right;
+  min-width:46px}
+.up{color:var(--pos)} .dn{color:var(--neg)}
+svg.spark{display:block}
+.detail{border-top:1px solid var(--line);padding:12px 12px 14px;font-size:13px}
+.blk{margin-top:12px}
+.blk:first-child{margin-top:0}
+.blk-h{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
+  margin-bottom:6px}
+.blk-h span{text-transform:none;letter-spacing:0;color:var(--dim);font-size:11px}
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0}
+dt{color:var(--dim)}
+dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.wins{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.win{background:var(--chip);border-radius:9px;padding:8px 10px}
+.win .wt{font-size:11px;color:var(--dim);margin-bottom:3px}
+.win .wv{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}
+.win .wd{font-size:11px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
+.bar-row{display:grid;grid-template-columns:56px 1fr 46px;gap:9px;align-items:center;
+  padding:4px 0;border-top:1px solid var(--line)}
+.bar-row:first-child{border-top:0}
+.bar-row .bt{font-weight:600;font-size:12px;font-variant-numeric:tabular-nums}
+.bar-row .bn{color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.bar-row .bv{text-align:right;font-size:12px;font-variant-numeric:tabular-nums}
+.track{height:4px;background:var(--shade);border-radius:2px;margin-top:3px;overflow:hidden}
+.fill{height:100%;border-radius:2px;background:var(--accent)}
+.note{color:var(--dim);font-size:12px;margin-top:8px}
+.empty{color:var(--dim);text-align:center;padding:26px 0}
+.method{margin-top:26px;border-top:1px solid var(--line);padding-top:16px;
+  color:var(--dim);font-size:12.5px}
+.method h2{font-size:13px;color:var(--ink);margin:16px 0 5px;letter-spacing:.01em}
+.method h2:first-child{margin-top:0}
+.method p{margin:0 0 8px}
+.method b{color:var(--ink);font-weight:600}
+.method code{background:var(--chip);border-radius:4px;padding:1px 4px;font-size:11.5px}
+.scroller{overflow-x:auto}
+.more[hidden],.empty[hidden],.detail[hidden],.row[hidden]{display:none}
+</style>
+
+<div class="wrap">
+  <h1>Stock groups</h1>
+  <p class="sub">Equal-weight baskets we built ourselves, ranked by risk-adjusted momentum.</p>
+  <div class="stamp" id="stamp"></div>
+
+  <div class="readout" id="readout"></div>
+
+  <input id="q" type="search" placeholder="Search a group, theme or ticker" autocomplete="off">
+  <div id="list"></div>
+  <p class="empty" id="empty" hidden>Nothing matches that.</p>
+
+  <section class="method" id="method"></section>
+</div>
+
+<script>
+const D = __DATA__;
+const $ = id => document.getElementById(id);
+const pct = x => (x * 100).toFixed(0) + '%';
+const sgn = x => (x >= 0 ? '+' : '') + x.toFixed(2);
+
+$('stamp').textContent =
+  `Prices through ${D.asOf}. Every figure is fixed at that close and never updates.`;
+
+$('readout').innerHTML = [
+  ['Groups', `<b>${D.groups.length}</b>`],
+  ['Stocks inside them', `<b>${D.covered.toLocaleString()}</b> of ${D.liquid.toLocaleString()} liquid names`],
+  ['Independent bets in the top 10', `<b>${D.bets['10']}</b> of 10`],
+  ['Market factor', `<b>${pct(D.pc1)}</b> of variance`],
+].map(([a, b]) => `<div class="rl"><span>${a}</span><span>${b}</span></div>`).join('');
+
+function spark(sp, skip, w, h) {
+  if (!sp || sp.length < 2) return '';
+  const lo = Math.min(...sp), hi = Math.max(...sp), rng = (hi - lo) || 1;
+  const x = i => (i / (sp.length - 1)) * w;
+  const y = v => h - 2 - ((v - lo) / rng) * (h - 4);
+  const d = sp.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const cut = sp.length - 1 - skip;
+  const up = sp[sp.length - 1] >= sp[0];
+  const col = up ? 'var(--pos)' : 'var(--neg)';
+  const shade = skip > 0
+    ? `<rect x="${x(cut).toFixed(1)}" y="0" width="${(w - x(cut)).toFixed(1)}" height="${h}" fill="var(--shade)"/>` : '';
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    ${shade}<path d="${d}" fill="none" stroke="${col}" stroke-width="1.5"
+    stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+function bars(members) {
+  const vals = members.map(m => Math.abs(m.s12 ?? 0));
+  const max = Math.max(1e-9, ...vals);
+  return members.map(m => {
+    const s = m.s12 ?? 0;
+    return `<div class="bar-row">
+      <div><div class="bt">${m.t}</div></div>
+      <div><div class="bn">${m.n}</div>
+        <div class="track"><div class="fill" style="width:${(Math.abs(s) / max * 100).toFixed(0)}%;
+          background:${s >= 0 ? 'var(--pos)' : 'var(--neg)'}"></div></div></div>
+      <div class="bv ${s >= 0 ? 'up' : 'dn'}">${sgn(s)}</div>
+    </div>`;
+  }).join('');
+}
+
+function detail(g) {
+  const win = (k, label) => {
+    const w = g['w' + k];
+    return `<div class="win"><div class="wt">${label}</div>
+      <div class="wv ${w.sc >= 0 ? 'up' : 'dn'}">${sgn(w.sc)}</div>
+      <div class="wd">${(w.ret * 100).toFixed(0)}% return / ${(w.vol * 100).toFixed(0)}% vol</div></div>`;
+  };
+  const splitNote = g.split
+    ? `<p class="note">This is one half of the <b>${g.theme}</b> theme. It was split
+       because the members separated into groups that a random cut of the same shape
+       could not reproduce &mdash; the boundary is in the returns, not in the label.</p>`
+    : '';
+  const weakNote = g.weak
+    ? `<p class="note">Members correlate only ${sgn(g.coh)} with each other once the
+       market is removed. Treat this as a list of names that share a story, not as one bet.</p>`
+    : '';
+  return `<div class="detail">
+    <div class="blk"><div class="blk-h">Score <span>&mdash; ${(D.weights['12'] * 100).toFixed(0)}/${(D.weights['6'] * 100).toFixed(0)} blend of the two windows</span></div>
+      <div class="wins">${win('12', '12&minus;1')}${win('6', '6&minus;1')}</div></div>
+    <div class="blk">${spark(g.sp, g.spSkip, 320, 54)}</div>
+    <div class="blk"><div class="blk-h">Members <span>&mdash; equal weight, 12&minus;1 score each</span></div>
+      ${bars(g.mem)}</div>
+    <div class="blk"><div class="blk-h">Group</div>
+      <dl>
+        <dt>Cohesion, market removed</dt><dd>${sgn(g.coh)}</dd>
+        <dt>Cohesion, raw</dt><dd>${sgn(g.cohRaw)}</dd>
+        <dt>Independent bets inside</dt><dd>${g.bets} of ${g.n}</dd>
+        <dt>Closest other group</dt><dd>${g.near[0]}</dd>
+        <dt>&hellip; correlated</dt><dd>${sgn(g.near[1])}</dd>
+      </dl>
+      ${splitNote}${weakNote}</div>
+  </div>`;
+}
+
+function render(rows) {
+  $('list').innerHTML = rows.map(g => `<div class="row" data-k="${g.rank}">
+    <div class="row-hd" tabindex="0" role="button" aria-expanded="false">
+      <div class="rk">${g.rank}</div>
+      <div class="nm">
+        <div class="tkr">${g.name}</div>
+        <div class="meta">
+          <span class="chip">${g.n} names</span>
+          <span class="chip ${g.weak ? 'weak' : ''}">cohesion ${sgn(g.coh)}</span>
+          <span class="chip">${g.bets} bets</span>
+        </div>
+      </div>
+      <div class="right">${spark(g.sp, g.spSkip, 62, 26)}
+        <div class="sc ${g.cb >= 0 ? 'up' : 'dn'}">${sgn(g.cb)}</div></div>
+    </div>
+  </div>`).join('');
+  $('empty').hidden = rows.length > 0;
+}
+
+const byRank = {};
+D.groups.forEach(g => { byRank[g.rank] = g; });
+
+function toggle(row) {
+  const hd = row.querySelector('.row-hd');
+  const open = row.querySelector('.detail');
+  if (open) { open.remove(); hd.setAttribute('aria-expanded', 'false'); return; }
+  row.insertAdjacentHTML('beforeend', detail(byRank[row.dataset.k]));
+  hd.setAttribute('aria-expanded', 'true');
+}
+$('list').addEventListener('click', e => {
+  const row = e.target.closest('.row');
+  if (row) toggle(row);
+});
+$('list').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('.row');
+  if (!row) return;
+  e.preventDefault();
+  toggle(row);
+});
+
+$('q').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return render(D.groups);
+  render(D.groups.filter(g =>
+    g.name.toLowerCase().includes(q) || g.theme.toLowerCase().includes(q) ||
+    g.mem.some(m => m.t.toLowerCase() === q || m.n.toLowerCase().includes(q))));
+});
+
+render(D.groups);
+
+const split = D.splits.slice().sort((a, b) => (b.after - b.before) - (a.after - a.before))[0];
+$('method').innerHTML = `
+<h2>What this is</h2>
+<p>Every group here was written by hand, then tested. Nothing on this page is a
+fund you can buy &mdash; each row is a list of stocks held at
+<b>equal weight</b>, which is the point: a sector ETF is mostly a bet on its two
+largest members, and weighting them evenly makes the group a statement about the
+theme instead.</p>
+
+<h2>The universe</h2>
+<p>Every US-listed common share with a <b>median daily dollar volume of
+$${(D.minDv / 1e6).toFixed(0)}M or more</b> over the last 63 sessions &mdash; median,
+not mean, so one block trade cannot lift a thin name through. That is
+${D.liquid.toLocaleString()} names; ${D.covered.toLocaleString()} of them sit in a
+group. The symbol list comes from the full master file, not the vendor's screener,
+which silently returns only part of the market.</p>
+
+<h2>The score</h2>
+<p>For each group, its equal-weight daily return series over a formation window that
+stops <b>${D.skip} sessions short of today</b>, sidestepping short-term reversal.
+Annualised return divided by annualised volatility, over two windows &mdash;
+<b>12&minus;1</b> (${D.windows['12']} returns) and <b>6&minus;1</b>
+(${D.windows['6']} returns) &mdash; blended
+${(D.weights['12'] * 100).toFixed(0)}/${(D.weights['6'] * 100).toFixed(0)}. The line
+on each row covers the full year <em>including</em> the skipped month, shaded, so
+what the score ignores is still visible.</p>
+
+<h2>How a group earns its place</h2>
+<p><b>Cohesion</b> is the average correlation between members after the market factor
+is removed. Two unrelated stocks score 0. The market factor is the first principal
+component of the universe's own returns &mdash; ${pct(D.pc1)} of variance here, much
+smaller than it is across funds, because a share is not already a basket.</p>
+<p>Three tests ran on the written list. Members correlating under
+<b>+${D.dropCut.toFixed(2)}</b> with their own group were removed
+(${D.dropped.length} of them). A theme was divided only when the division beat a
+<b>random cut of the same shape</b>, since any finer split raises correlation by
+arithmetic alone &mdash; ${D.splits.length} themes had a real internal boundary${
+  split ? `, the sharpest being <b>${split.theme}</b> at ${sgn(split.before)} whole
+  against ${sgn(split.after)} divided` : ''}. Anything still under
+<b>+${D.minCoh.toFixed(2)}</b> is flagged: it is a story, not a bet.</p>
+
+<h2>What it does not fix</h2>
+<p>The top ten groups contain <b>${D.bets['10']} independent bets</b>
+(${D.bets['5']} in the top five, ${D.bets['20']} in the top twenty). Building better
+baskets makes each row honest about what it holds; it does not make the top of a
+momentum ranking diversified. That is a fact about the market, not a flaw to
+engineer away.</p>`;
+</script>

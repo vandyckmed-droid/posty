@@ -1,8 +1,11 @@
 # Downloaded and derived data - fully reproducible from the pipeline
 data/
+data-*/
 *.build.html
-wrapped.html
+wrapped*.html
 shot-*.png
+curated-*.png
+groups-*.png
 
 # Node
 node_modules/
