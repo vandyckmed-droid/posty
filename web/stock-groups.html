@@ -36,6 +36,8 @@ h1{font-size:21px;margin:0 0 4px;letter-spacing:-.01em}
   margin-bottom:8px;overflow:hidden}
 .row-hd{display:grid;grid-template-columns:26px 1fr auto;gap:9px;align-items:center;
   padding:11px 12px;cursor:pointer}
+.row-hd:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:11px}
+#q:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .rk{color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
 .nm{min-width:0}
 .tkr{font-weight:600;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
@@ -63,8 +65,9 @@ dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
 .win .wt{font-size:11px;color:var(--dim);margin-bottom:3px}
 .win .wv{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}
 .win .wd{font-size:11px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
-.bar-row{display:grid;grid-template-columns:52px 1fr 46px;gap:8px;align-items:center;
-  padding:3px 0}
+.bar-row{display:grid;grid-template-columns:56px 1fr 46px;gap:9px;align-items:center;
+  padding:4px 0;border-top:1px solid var(--line)}
+.bar-row:first-child{border-top:0}
 .bar-row .bt{font-weight:600;font-size:12px;font-variant-numeric:tabular-nums}
 .bar-row .bn{color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap}
@@ -181,7 +184,7 @@ function detail(g) {
 
 function render(rows) {
   $('list').innerHTML = rows.map(g => `<div class="row" data-k="${g.rank}">
-    <div class="row-hd">
+    <div class="row-hd" tabindex="0" role="button" aria-expanded="false">
       <div class="rk">${g.rank}</div>
       <div class="nm">
         <div class="tkr">${g.name}</div>
@@ -201,12 +204,23 @@ function render(rows) {
 const byRank = {};
 D.groups.forEach(g => { byRank[g.rank] = g; });
 
+function toggle(row) {
+  const hd = row.querySelector('.row-hd');
+  const open = row.querySelector('.detail');
+  if (open) { open.remove(); hd.setAttribute('aria-expanded', 'false'); return; }
+  row.insertAdjacentHTML('beforeend', detail(byRank[row.dataset.k]));
+  hd.setAttribute('aria-expanded', 'true');
+}
 $('list').addEventListener('click', e => {
   const row = e.target.closest('.row');
+  if (row) toggle(row);
+});
+$('list').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('.row');
   if (!row) return;
-  const open = row.querySelector('.detail');
-  if (open) { open.remove(); return; }
-  row.insertAdjacentHTML('beforeend', detail(byRank[row.dataset.k]));
+  e.preventDefault();
+  toggle(row);
 });
 
 $('q').addEventListener('input', e => {
