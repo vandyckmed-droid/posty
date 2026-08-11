@@ -144,10 +144,11 @@ Two findings this surfaced, both documented in the page's own method section:
 
 ## Running it
 
-Requires Python 3 with `numpy`, Node for the preview, and a
+Requires Python 3, Node for the preview, and a
 [Financial Modeling Prep](https://financialmodelingprep.com) API key.
 
 ```bash
+pip install -r requirements.txt
 export FMP_API_KEY=...        # API_KEY is also accepted
 make all                      # full refresh, ~10 min cold
 make preview                  # render in Chromium and assert the page works
@@ -230,7 +231,7 @@ make groups-page     # rebuild from data already downloaded
 
 ### The taxonomy
 
-`universe/stock_themes.txt` holds 136 themes over ~2,200 tickers, written by hand
+`universe/stock_themes.txt` holds 136 themes over 2,345 tickers, written by hand
 from how the US tape is actually organised rather than from industry codes. Several
 themes deliberately cross sector lines no classification system can: **AI power**
 spans industrials, utilities and energy; **neoclouds** mixes former bitcoin miners
@@ -287,7 +288,7 @@ matching "Trust" alone would throw out most of the REIT market.
 | `05_score.py` | equal-weight group portfolios over both windows, member scores |
 | `06_page.py` | inject into `web/stock-groups.html`, validate |
 
-Data lands in `./data-stocks`. Requires `scipy` alongside `numpy`.
+Data lands in `./data-stocks`.
 
 ## Publishing
 

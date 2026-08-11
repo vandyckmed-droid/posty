@@ -2,10 +2,12 @@
   "name": "posty",
   "version": "1.0.0",
   "private": true,
-  "description": "ETF risk-adjusted momentum screen",
+  "description": "Risk-adjusted momentum screens: liquid US ETFs, and stock groups of our own design",
   "type": "module",
   "scripts": {
-    "preview": "node tools/preview.mjs"
+    "preview": "node tools/preview.mjs",
+    "preview:curated": "node tools/preview-curated.mjs",
+    "preview:groups": "node tools/preview-groups.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.0"

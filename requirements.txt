@@ -1,0 +1,3 @@
+# Runtime dependencies for the pipelines. Install with:  pip install -r requirements.txt
+numpy>=1.26        # returns, correlation, PCA
+scipy>=1.11        # groups/04: average-linkage clustering for the split candidates
